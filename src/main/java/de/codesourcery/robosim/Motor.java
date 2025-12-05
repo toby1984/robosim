@@ -69,7 +69,7 @@ public class Motor
     public double currentAngle;
 
     /** Desired angle of gearbox input shaft in radians */
-    public double desiredAngle;
+    private double desiredAngle;
 
     /** the motor's current angular velocity in rad/s */
     public double currentAngularVelocity;
@@ -130,7 +130,7 @@ public class Motor
     }
 
     public boolean isMoving() {
-        return Math.abs( this.currentAngularVelocity ) > 0.0001;
+        return Math.abs( this.currentAngularVelocity ) > 0.001;
     }
 
     public void tick(double elapsedSeconds) {
@@ -165,7 +165,7 @@ public class Motor
         final double pidTorque = torqueFactor * maxTorque;
 
         final double generatedHeat = (pidTorque * pidTorque) / Math.max(0.000000001, elapsedSeconds);
-        final double dissipatedHeat = (currentTemperature - ambientTemperature) * Math.max(0.000000001, elapsedSeconds);
+        final double dissipatedHeat = (currentTemperature - ambientTemperature) * 500 * Math.max(0.000000001, elapsedSeconds);
 
         final double deltaHeat = generatedHeat - dissipatedHeat;
         final double deltaTemperature = deltaHeat / thermalMass;
@@ -234,5 +234,21 @@ public class Motor
 
         this.overtemperatureTime = 0;
         this.totalOvertemperatureTime = 0;
+    }
+
+    public double getDesiredAngle()
+    {
+        return desiredAngle;
+    }
+
+    public void setDesiredAngle(double desiredAngle)
+    {
+        while( desiredAngle < 0 ) {
+            desiredAngle += 2*Math.PI;
+        }
+        while( desiredAngle > 2*Math.PI ) {
+            desiredAngle -= 2*Math.PI;
+        }
+        this.desiredAngle = desiredAngle;
     }
 }

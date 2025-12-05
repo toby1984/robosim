@@ -21,7 +21,7 @@ public class Main extends JFrame
         private int mouseX, mouseY;
 
         private final Chart angleChart = new Chart( Color.YELLOW, Color.WHITE,250)
-            .yScaling( 15 ).sampleEvery( 20 );
+            .yScaling( 15 ).sampleEvery( 50 );
         {
             setFocusable( true );
             requestFocus();
@@ -65,13 +65,13 @@ public class Main extends JFrame
         }
 
         public void startMotion(double angleInRad) {
-            if ( ! motor.isMoving() )
-            {
-                motor.desiredAngle = angleInRad;
+//            if ( ! motor.isMoving() )
+//            {
+                motor.setDesiredAngle( angleInRad );
                 currentMotion = new Motion();
-            } else {
-                System.out.println("*** Motor is still moving... ***");
-            }
+//            } else {
+//                System.out.println("*** Motor is still moving... ***");
+//            }
         }
 
         @Override
@@ -102,8 +102,8 @@ public class Main extends JFrame
 
             // render line indicating the motor's desired angle
             final int rDesired = 150;
-            int px = (int) Math.round( motorX + rDesired * Math.cos( motor.desiredAngle) );
-            int py = (int) Math.round( motorY + rDesired * Math.sin( motor.desiredAngle) );
+            int px = (int) Math.round( motorX + rDesired * Math.cos( motor.getDesiredAngle()) );
+            int py = (int) Math.round( motorY + rDesired * Math.sin( motor.getDesiredAngle() ) );
             g.setColor( Color.GREEN );
             g.drawLine( motorX, motorY, px, py );
 
@@ -180,12 +180,18 @@ public class Main extends JFrame
         motor.breakOnOverTemperature = false;
 
         final Timer t = new Timer(16, _ -> {
-            motor.tick( 0.05f );
-            if ( motorPanel.currentMotion != null && ! motorPanel.currentMotion.stopped && ! motor.isMoving() ) {
-                motorPanel.currentMotion.stop();
-                System.out.println("Motor stopped after "+motorPanel.currentMotion.elapsedSeconds()+" seconds");
-            }
-            motorPanel.angleChart.update( motor.elapsedSeconds, motor.currentAngle );
+            int ticks = 10;
+            do
+            {
+                motor.tick( 0.02f );
+                if ( motorPanel.currentMotion != null && !motorPanel.currentMotion.stopped && !motor.isMoving() )
+                {
+                    motorPanel.currentMotion.stop();
+                    System.out.println( "Motor stopped after " + motorPanel.currentMotion.elapsedSeconds() + " " +
+                                        "seconds" );
+                }
+                motorPanel.angleChart.update( motor.elapsedSeconds, motor.currentAngle );
+            } while (ticks-- > 0);
             motorPanel.repaint();
         });
         t.start();
