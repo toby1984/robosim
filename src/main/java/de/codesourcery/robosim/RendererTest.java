@@ -71,10 +71,10 @@ public class RendererTest extends JFrame
         Vector3f p3 = new Vector3f( -x, -y, 0);
 
         final Mesh mesh;
-        mesh = new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build();
+        // mesh = new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build();
 
         // mesh = new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build();
-        // mesh = MeshBuilder.createCube( 10 );
+        mesh = MeshBuilder.createCube( 50 );
         body = new Body(mesh);
 
         cam.setPosition( 0, 0, 10 );

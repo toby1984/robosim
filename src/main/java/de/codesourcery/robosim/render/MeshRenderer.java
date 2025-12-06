@@ -3,13 +3,15 @@ package de.codesourcery.robosim.render;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
 import org.joml.Vector3f;
 import de.codesourcery.robosim.Utils;
 
 public class MeshRenderer
 {
     public final Camera camera;
+
+    private boolean backFaceCulling = false;
+    private boolean depthSort = false;
 
     public MeshRenderer(Camera camera)
     {
@@ -57,18 +59,21 @@ public class MeshRenderer
             avg.set(x, y, z);
 
             // back-face culling
-            if ( viewVec.dot( avg ) > 0 ) {
+            if ( ! backFaceCulling || viewVec.dot( avg ) > 0 ) {
                 // visible, add triangle indices
                 triangleIndices[triangleCount++] = i;
             }
         }
 
         // painter's algorith: sort triangles so we render from back to front
-        IntegerQuicksort.sort( triangleIndices, (int triangleIdxA, int triangleIdxB) -> {
-            final float z0 = mesh.getTriangleAverageZCoordinate( triangleIdxA );
-            final float z1 = mesh.getTriangleAverageZCoordinate( triangleIdxB );
-            return Float.compare( z0, z1 );
-        });
+        if ( depthSort )
+        {
+            IntegerQuicksort.sort( triangleIndices, (int triangleIdxA, int triangleIdxB) -> {
+                final float z0 = mesh.getTriangleAverageZCoordinate( triangleIdxA );
+                final float z1 = mesh.getTriangleAverageZCoordinate( triangleIdxB );
+                return Float.compare( z0, z1 );
+            } );
+        }
 
         Mesh.transform( mesh, camera.getViewProjectionMatrix(), camera.getInverseViewMatrix() );
 
