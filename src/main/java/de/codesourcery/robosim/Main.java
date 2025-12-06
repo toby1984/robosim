@@ -183,7 +183,7 @@ public class Main extends JFrame
             int ticks = 10;
             do
             {
-                motor.tick( 0.02f );
+                motor.tick( 0.3f );
                 if ( motorPanel.currentMotion != null && !motorPanel.currentMotion.stopped && !motor.isMoving() )
                 {
                     motorPanel.currentMotion.stop();

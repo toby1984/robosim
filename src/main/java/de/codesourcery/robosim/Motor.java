@@ -45,6 +45,7 @@ public class Motor
      */
 
     public boolean breakOnOverTemperature = true;
+
     public boolean breakOnOverload = true;
 
     public String name;
@@ -130,7 +131,7 @@ public class Motor
     }
 
     public boolean isMoving() {
-        return Math.abs( this.currentAngularVelocity ) > 0.001;
+        return Math.abs( this.currentAngularVelocity ) > 0.0001;
     }
 
     public void tick(double elapsedSeconds) {
@@ -159,8 +160,8 @@ public class Motor
             torqueFactor = pid.step( currentAngle, desiredAngle, elapsedSeconds );
         }
 
-//        final double maxTorque = Math.max( ratedTorque, Math.min( Math.abs( externalTorque ) , stallTorque ) );
-        final double maxTorque = ratedTorque;
+        final double maxTorque = Math.max( ratedTorque, Math.min( Math.abs( externalTorque ) , stallTorque ) );
+        // final double maxTorque = ratedTorque;
         // speedSetting will be in range [-1,1]
         final double pidTorque = torqueFactor * maxTorque;
 
@@ -221,14 +222,17 @@ public class Motor
 //        }
     }
 
-    public void reset() {
+    public void reset()
+    {
         this.pid.reset();
 
+        this.externalTorque = 0;
         this.motorState = MotorState.OPERATIONAL;
         this.currentAngle = 0;
         this.currentAngularVelocity = 0;
         this.currentTemperature = ambientTemperature;
         this.elapsedSeconds = 0;
+
         this.stallTime = 0;
         this.totalStallTime = 0;
 
