@@ -40,7 +40,8 @@ public class MeshBuilder
 
     private void calculateNormalVector(Vector3f p0,Vector3f p1, Vector3f p2,Vector3f result)
     {
-        calculateNormalVector( p0.x, p0.y, p0.z,
+        calculateNormalVector(
+            p0.x, p0.y, p0.z,
             p1.x, p1.y, p1.z,
             p2.x, p2.y, p2.z, result );
     }
@@ -75,9 +76,9 @@ public class MeshBuilder
     {
         if ( vertexPtr == vertices.length )
         {
-            final int currentLength = vertices.length / attributesPerVertex;
-            final int newLength = 1 + (currentLength * 2);
-            vertices = Arrays.copyOf( vertices, newLength * attributesPerVertex );
+            final int currentVertexCount = vertices.length / attributesPerVertex;
+            final int newVertexCount = 1 + (currentVertexCount * 2);
+            vertices = Arrays.copyOf( vertices, newVertexCount * attributesPerVertex );
         }
         final int idx = vertexPtr / attributesPerVertex;
         vertices[vertexPtr + ATTR_VERTEX_X    ] = x;
@@ -155,28 +156,28 @@ public class MeshBuilder
         final Vector3f p4 = new Vector3f(xMin, yMin, zMax);
 
         // back
-        final Vector3f p2 = new Vector3f(xMax, yMax, -zMin);
-        final Vector3f p1 = new Vector3f(xMin, yMax, -zMin);
-        final Vector3f p5 = new Vector3f(xMin, yMin, -zMin);
-        final Vector3f p6 = new Vector3f(xMax, yMin, -zMin);
+        final Vector3f p2 = new Vector3f(xMax, yMax, zMin);
+        final Vector3f p1 = new Vector3f(xMin, yMax, zMin);
+        final Vector3f p5 = new Vector3f(xMin, yMin, zMin);
+        final Vector3f p6 = new Vector3f(xMax, yMin, zMin);
 
-        // front surface
-        builder.addQuad( p0, p3, p7, p4, Color.RED.getRGB() );
+        // front surface WORKS
+          builder.addQuad( p0, p3, p7, p4, Color.RED.getRGB() );
 
         // right surface
         builder.addQuad( p3, p2, p6, p7, Color.GREEN.getRGB() );
 
-        // left surface
-        builder.addQuad( p1, p0, p4, p5, Color.YELLOW.getRGB() );
-
-        // back surface
+//        // left surface
+         builder.addQuad( p1, p0, p4, p5, Color.YELLOW.getRGB() );
+//
+//        // back surface WORKS
         builder.addQuad( p2, p1, p5, p6, Color.PINK.getRGB() );
-
-        // top surface
+//
+//        // top surface
         builder.addQuad( p1, p2, p3, p0, Color.LIGHT_GRAY.getRGB() );
-
-        // bottom surface
-        builder.addQuad( p1, p2, p3, p0, Color.CYAN.getRGB() );
+//
+//        // bottom surface
+         builder.addQuad( p1, p2, p3, p0, Color.CYAN.getRGB() );
 
         return builder.build();
     }
