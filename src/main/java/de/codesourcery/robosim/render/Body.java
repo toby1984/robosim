@@ -48,8 +48,7 @@ public class Body
     }
 
     private void updateMatrix() {
-        Matrix4f rot = new  Matrix4f().rotateAffineXYZ( rotation.x,rotation.y,rotation.z );
-        modelMatrix.translation( position ).mul( rot );
+        modelMatrix.translation( position ).rotateAffineXYZ( rotation.x, rotation.y, rotation.z );
         // invalidate AABB
         axisAlignedBB = null;
     }
