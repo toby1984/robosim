@@ -19,7 +19,8 @@ public class MeshRenderer
 
     private final boolean renderWireframe = false;
     private final boolean backFaceCulling = true;
-    private final boolean depthSort = true;
+    private final boolean depthSortBodies = true;
+    private final boolean depthSortTriangles = true;
 
     private static final class Line {
         public final float x0,y0;
@@ -77,12 +78,15 @@ public class MeshRenderer
         }
 
         // sort meshes ascending by their largest Z-index
-        IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length, (a,b) -> Float.compare( largestZIndex[a], largestZIndex[b]) );
+        if ( depthSortBodies )
+        {
+            IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length, (a, b) -> Float.compare( largestZIndex[a], largestZIndex[b] ) );
+        }
 
         /*
          * IMPORTANT: Normals need to be transformed using the TRANSPOSED inverted view matrix.
          */
-        final Matrix4f normalMatrix = new Matrix4f( camera.getInverseViewMatrix() ).transpose();
+        final Matrix4f normalMatrix = camera.getInvertedTransposedViewMatrix();
 
         for ( final int meshIndex : meshesByAscendingZIndex )
         {
@@ -105,32 +109,29 @@ public class MeshRenderer
 
             // array of vertices of all triangles that passed the
             // back-face culling test
-            for ( int i = 0; i < mesh.indices.length; i += 3 )
+            for ( int i = 0; i < mesh.indices.length; i+= 3 )
             {
-                mesh.getNormal( mesh.indices[i], p0 );
-                mesh.getNormal( mesh.indices[i + 1], p1 );
-                mesh.getNormal( mesh.indices[i + 2], p2 );
-                float x = (p0.x + p1.x + p2.x) / 3;
-                float y = (p0.y + p1.y + p2.y) / 3;
-                float z = (p0.z + p1.z + p2.z) / 3;
-                avg.set( x, y, z );
+                for ( int j = 2; j >= 0 ; j-- ) {
+                    final int triangleVertexIndex = i+j;
+                    mesh.getNormal( mesh.indices[triangleVertexIndex], p0 );
+                    mesh.getVertexCoords( mesh.indices[triangleVertexIndex], p1);
+                    p1.sub( camera.getPosition() );
 
-                mesh.getTriangleCenterCoords( i, center0 );
-
-                // back-face culling
-                if ( !backFaceCulling || center0.dot( avg ) <= 0 )
-                {
-                    // visible, add triangle indices
-                    triangleIndices[triangleCount++] = i;
+                    if ( ! backFaceCulling || p0.dot( p1 ) <= 0 )
+                    {
+                        // visible, add triangle indices
+                        triangleIndices[triangleCount++] = i;
+                        break;
+                    }
                 }
             }
 
             // sort triangles back to front
-            if ( depthSort )
+            if ( depthSortTriangles )
             {
                 IntegerQuicksort.sort( triangleIndices, triangleCount, (int triangleIdxA, int triangleIdxB) -> {
-                    final float z0 = mesh.getTriangleAverageZCoordinate( triangleIdxA );
-                    final float z1 = mesh.getTriangleAverageZCoordinate( triangleIdxB );
+                    final float z0 = mesh.getTriangleMinZ( triangleIdxA );
+                    final float z1 = mesh.getTriangleMinZ( triangleIdxB );
                     return Float.compare( z0, z1 );
                 } );
             }
@@ -159,7 +160,6 @@ public class MeshRenderer
                 normals = null;
             }
             // now render all visible triangles back-to-front
-
 
             // transform mesh into normalized device coordinates (NDC)
             // in range [-1,1]

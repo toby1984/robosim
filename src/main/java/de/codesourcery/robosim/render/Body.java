@@ -54,6 +54,10 @@ public class Body
         transformedBoundingBox = null;
     }
 
+    public void setRotation(Vector3f v) {
+        setRotation( v.x,v.y,v.z );
+    }
+
     public void setRotation(float x, float y, float z) {
         rotation.set(x,y,z);
         updateMatrix();

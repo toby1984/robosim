@@ -15,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -30,7 +31,7 @@ public class RendererTest extends JFrame
 {
     private static final float CAM_ROTATION = 0.1f;
     private static final float CAM_TRANSLATION = 0.9f;
-    private static final Vector3f CAM_POSITION = new  Vector3f(0,0,60);
+    private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
 
     private final List<Body> bodies=new ArrayList<>();
     private final Camera cam = new Camera();
@@ -75,7 +76,7 @@ public class RendererTest extends JFrame
         setupBodies();
 
         cam.setPosition( CAM_POSITION.x, CAM_POSITION.y, CAM_POSITION.z );
-        cam.updateAll();
+        cam.updateViewMatrix();
 
         panel.setFocusable(  true );
         panel.requestFocus();
@@ -101,48 +102,65 @@ public class RendererTest extends JFrame
     }
 
     private void handleInput() {
-        boolean camChanged = false;
+        boolean cameraViewChanged = false;
         if ( pressedKeys.contains( KeyEvent.VK_W ) ) {
-            cam.translate( 0, 0, -CAM_TRANSLATION ); camChanged = true;
+            cam.translate( 0, 0, -CAM_TRANSLATION ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_A ) ) {
-            cam.translate( -CAM_TRANSLATION, 0, 0 ); camChanged = true;
+            cam.translate( -CAM_TRANSLATION, 0, 0 ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_S ) ) {
-            cam.translate( 0, 0, CAM_TRANSLATION ); camChanged = true;
+            cam.translate( 0, 0, CAM_TRANSLATION ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_D ) ) {
-            cam.translate( CAM_TRANSLATION, 0, 0 ); camChanged = true;
+            cam.translate( CAM_TRANSLATION, 0, 0 ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) {
-            cam.translate( 0, CAM_TRANSLATION, 0 ); camChanged = true;
+            cam.translate( 0, CAM_TRANSLATION, 0 ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_MINUS ) ) {
-            cam.translate( 0, -CAM_TRANSLATION, 0 ); camChanged = true;
+            cam.translate( 0, -CAM_TRANSLATION, 0 ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_Q ) ) {
-            cam.rotate( (float) ((2 * Math.PI / 360) * CAM_ROTATION) ); camChanged = true;
+            cam.rotate( (float) ((2 * Math.PI / 360) * CAM_ROTATION) ); cameraViewChanged = true;
         } else if ( pressedKeys.contains( KeyEvent.VK_E ) ) {
-            cam.rotate( (float) ((2 * Math.PI / 360) * -CAM_ROTATION) ); camChanged = true;
+            cam.rotate( (float) ((2 * Math.PI / 360) * -CAM_ROTATION) ); cameraViewChanged = true;
         }
-        if ( camChanged ) {
+        if ( cameraViewChanged ) {
+            cam.updateViewMatrix();
             needsRendering = true;
-            cam.updateAll();
         }
     }
 
     public void run() {
         final Timer timer = new Timer( 16, new ActionListener()
         {
-            private float angle = 0;
+            private final Vector3f angle = new Vector3f( 0, 0, 0 );
+            private static float degToRad(float deg) {
+                return (float)  Math.toRadians( deg );
+            }
+            private final Vector3f incrementsInDeg = new Vector3f( 1, 2, 3 );
 
-            private final float rotSpeed = 4;
+            private final Random rnd = new Random( 0xdeadbeef );
+
+            private int cnt = 0;
             @Override
             public void actionPerformed(ActionEvent ev)
             {
+                cnt++;
                 RendererTest.this.handleInput();
-                bodies.forEach( b -> b.setRotation( angle*rotSpeed*0.7f,angle*rotSpeed*0.5f,angle*rotSpeed*0.33f ) );
-                angle += (float) ((0.3*2 * Math.PI) / 360);
+
+                angle.x += degToRad( incrementsInDeg.x );
+                angle.y += degToRad( incrementsInDeg.y*1.33f );
+                angle.z += degToRad( incrementsInDeg.z*1.5f );
+                bodies.forEach( b -> b.setRotation( angle ) );
+                if ( (cnt % 100) == 0 ) {
+                    float r = rnd.nextFloat();
+                    if ( r < 0.3f ) {
+                        incrementsInDeg.x = 0.1f+rnd.nextFloat()*0.1f;
+                    }
+                    else  if ( r < 0.7f )
+                    {
+                        incrementsInDeg.y = 0.1f+rnd.nextFloat()*0.1f;
+                    } else {
+                        incrementsInDeg.z = 0.1f+rnd.nextFloat()*0.1f;
+                    }
+                }
                 panel.repaint();
-//            if ( needsRendering )
-//            {
-//                needsRendering = false;
-//                panel.repaint();
-//            }
             }
         } );
         timer.start();
@@ -163,6 +181,11 @@ public class RendererTest extends JFrame
 
         // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
         // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
-        bodies.add( new Body( MeshBuilder.createCube( 50 ) ) );
+        // final Body cube1 = new Body( MeshBuilder.createCube( 50 ) );
+        final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 50, 16 ) );
+        cube1.setPosition( 0,0,-50 );
+        // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
+        // cube2.setPosition( 50,0,-50 );
+        bodies.addAll( List.of(cube1) );
     }
 }

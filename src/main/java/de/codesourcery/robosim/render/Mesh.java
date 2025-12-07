@@ -1,7 +1,6 @@
 package de.codesourcery.robosim.render;
 
 import java.util.Arrays;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -139,16 +138,14 @@ public class Mesh
         result.z = vertices[offset + MeshBuilder.ATTR_VERTEX_NZ];
     }
 
-    public float getTriangleAverageZCoordinate(int firstIndexOffset) {
+    public float getTriangleMinZ(int firstIndexOffset) {
 
         final int vertex0 = indices[firstIndexOffset] * attributesPerVertex;
         final int vertex1 = indices[firstIndexOffset+1] * attributesPerVertex;
         final int vertex2 = indices[firstIndexOffset+2] * attributesPerVertex;
 
-        float z0 = vertices[ vertex0 + MeshBuilder.ATTR_VERTEX_Z ];
-        float z1 = vertices[ vertex1 + MeshBuilder.ATTR_VERTEX_Z ];
-        float z2 = vertices[ vertex2 + MeshBuilder.ATTR_VERTEX_Z ];
-        return (z0+z1+z2)/3;
+        return Math.min(vertices[ vertex0 + MeshBuilder.ATTR_VERTEX_Z ],
+            Math.min( vertices[ vertex1 + MeshBuilder.ATTR_VERTEX_Z ], vertices[ vertex2 + MeshBuilder.ATTR_VERTEX_Z ]));
     }
 
     public int getVertexColor(int indexNo)

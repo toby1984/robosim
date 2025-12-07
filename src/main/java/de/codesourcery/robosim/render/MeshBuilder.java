@@ -262,6 +262,12 @@ public class MeshBuilder
                 points[offset0],points[offset0+1],points[offset0+2],
                 points[offset1],points[offset1+1],points[offset1+2],argb
             );
+            if ( (i+1) == pntCnt ) {
+                addTriangle( cx,cy,cz,
+                    points[offset1],points[offset1+1],points[offset1+2],
+                    points[0],points[1],points[2],argb
+                );
+            }
         }
     }
 
@@ -291,7 +297,8 @@ public class MeshBuilder
             float y0 = (float) (radius * Math.sin( angle0 ));
 
             // render tube using quads
-            if ( (i+1) < subdivisions ) {
+//            if ( (i+1) < subdivisions ) {
+            {
                 final float angle1 = (i+1) * angleStep;
                 float z1 = (float) (radius * Math.cos( angle1 ));
                 float y1 = (float) (radius * Math.sin( angle1 ));
@@ -301,7 +308,7 @@ public class MeshBuilder
                 p2.set( xMax, y1, z1 );
                 p3.set( xMax, y0, z0 );
 
-                builder.addQuad( p0, p1, p2, p3, colors[ i % colors.length].getRGB() );
+                builder.addQuad( p3, p2, p1, p0, colors[ i % colors.length].getRGB() );
             }
 
             // points of triangle strips need to be wound in clock-wise order
