@@ -134,7 +134,7 @@ public class MeshRenderer
                 yPoints[2] = cy - (int) (p2.y*h/2);
 
                 graphics.drawPolygon( xPoints, yPoints, 3 );
-                // graphics.fillPolygon( xPoints, yPoints, 3 );
+//                 graphics.fillPolygon( xPoints, yPoints, 3 );
             }
         }
 

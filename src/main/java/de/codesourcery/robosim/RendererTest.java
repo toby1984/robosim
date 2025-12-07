@@ -134,7 +134,7 @@ public class RendererTest extends JFrame
             public void actionPerformed(ActionEvent ev)
             {
                 RendererTest.this.handleInput();
-                bodies.forEach( b -> b.setRotation( angle,angle,0 ) );
+                bodies.forEach( b -> b.setRotation( angle,angle*0.5f,0 ) );
                 angle += (float) ((2 * Math.PI) / 360);
                 panel.repaint();
 //            if ( needsRendering )
