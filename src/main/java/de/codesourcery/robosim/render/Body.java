@@ -38,7 +38,7 @@ public class Body
     public Mesh getMeshInWorldSpace()
     {
         final Mesh result = this.mesh.createCopy();
-        Mesh.transform( result, modelMatrix, modelMatrix.invert( new Matrix4f() ).transpose() );
+        Mesh.transform( result, modelMatrix, modelMatrix.invertAffine( new Matrix4f() ).transpose() );
         return result;
     }
 

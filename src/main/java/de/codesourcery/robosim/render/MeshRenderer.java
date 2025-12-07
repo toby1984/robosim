@@ -3,21 +3,23 @@ package de.codesourcery.robosim.render;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Vector;
+import java.util.Map;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import de.codesourcery.robosim.Utils;
 
 public class MeshRenderer
 {
-    private static final boolean RENDER_NORMALS = true;
+    private static final boolean RENDER_NORMALS = false;
+    private static final boolean RENDER_DEBUG_INFO = false;
 
     public final Camera camera;
 
-    private boolean backFaceCulling = false;
-    private boolean depthSort = false;
+    private final boolean renderWireframe = false;
+    private final boolean backFaceCulling = true;
+    private final boolean depthSort = true;
 
     private static final class Line {
         public final float x0,y0;
@@ -39,6 +41,12 @@ public class MeshRenderer
         this.camera = camera;
     }
 
+    private final Map<Integer,Color> colorMap = new HashMap<>();
+
+    private Color getColor(int argb) {
+        return colorMap.computeIfAbsent( argb, Color::new );
+    }
+
     public void render(BufferedImage image, Graphics2D graphics, List<Body> bodies) {
 
         // some temporary variables
@@ -47,7 +55,6 @@ public class MeshRenderer
         final Vector3f p2 = new Vector3f();
         final Vector3f avg = new Vector3f();
         final Vector3f center0 = new Vector3f();
-        final Vector3f center1 = new Vector3f();
 
         // sort meshes of bodies back-to-front according to distance
         // their distance to the camera.
@@ -70,12 +77,13 @@ public class MeshRenderer
         }
 
         // sort meshes ascending by their largest Z-index
-        IntegerQuicksort.sort( meshesByAscendingZIndex, (a,b) -> Float.compare( largestZIndex[a], largestZIndex[b]) );
+        IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length, (a,b) -> Float.compare( largestZIndex[a], largestZIndex[b]) );
 
         /*
          * IMPORTANT: Normals need to be transformed using the TRANSPOSED inverted view matrix.
          */
         final Matrix4f normalMatrix = new Matrix4f( camera.getInverseViewMatrix() ).transpose();
+
         for ( final int meshIndex : meshesByAscendingZIndex )
         {
             final Mesh mesh = meshesInViewSpace[meshIndex];
@@ -110,7 +118,7 @@ public class MeshRenderer
                 mesh.getTriangleCenterCoords( i, center0 );
 
                 // back-face culling
-                if ( !backFaceCulling || center0.dot( avg ) > 0 )
+                if ( !backFaceCulling || center0.dot( avg ) <= 0 )
                 {
                     // visible, add triangle indices
                     triangleIndices[triangleCount++] = i;
@@ -120,14 +128,12 @@ public class MeshRenderer
             // sort triangles back to front
             if ( depthSort )
             {
-                IntegerQuicksort.sort( triangleIndices, (int triangleIdxA, int triangleIdxB) -> {
+                IntegerQuicksort.sort( triangleIndices, triangleCount, (int triangleIdxA, int triangleIdxB) -> {
                     final float z0 = mesh.getTriangleAverageZCoordinate( triangleIdxA );
                     final float z1 = mesh.getTriangleAverageZCoordinate( triangleIdxB );
                     return Float.compare( z0, z1 );
                 } );
             }
-
-//            System.out.println("Visible triangles: "+triangleCount);
 
             final Line[] normals;
             if ( RENDER_NORMALS )
@@ -159,9 +165,8 @@ public class MeshRenderer
             // in range [-1,1]
             Mesh.transformPerspectiveNDC( mesh, camera.getProjectionMatrix() );
 
-            int currentColor = 0;
-            Color color = Color.BLACK;
-            graphics.setColor( color );
+            int currentColorARGB = 0;
+            graphics.setColor( Color.BLACK );
             final int[] xPoints = new int[3];
             final int[] yPoints = new int[3];
 
@@ -175,12 +180,11 @@ public class MeshRenderer
                 final int triangleIndex = triangleIndices[i];
 
                 // TODO: we'll currently only use the color of the triangle's first vertex
-                final int rgb = mesh.getVertexColor( triangleIndex );
-                if ( rgb != currentColor )
+                final int argb = mesh.getVertexColor( triangleIndex );
+                if ( argb != currentColorARGB )
                 {
-                    currentColor = rgb;
-                    color = new Color( rgb );
-                    graphics.setColor( color );
+                    graphics.setColor( getColor( argb ) );
+                    currentColorARGB = argb;
                 }
                 mesh.getTriangleVertexCoords( triangleIndex, p0, p1, p2 );
 
@@ -192,8 +196,11 @@ public class MeshRenderer
                 yPoints[1] = cy - (int) (p1.y * h / 2);
                 yPoints[2] = cy - (int) (p2.y * h / 2);
 
-                graphics.drawPolygon( xPoints, yPoints, 3 );
-//                 graphics.fillPolygon( xPoints, yPoints, 3 );
+                if ( renderWireframe ) {
+                    graphics.drawPolygon( xPoints, yPoints, 3 );
+                } else {
+                    graphics.fillPolygon( xPoints, yPoints, 3 );
+                }
             }
 
             if ( RENDER_NORMALS )
@@ -207,18 +214,20 @@ public class MeshRenderer
                     final int y1 = cy - (int) (line.y1 * h / 2);
 
                     final int argb = line.argb;
-                    if ( argb != currentColor )
+                    if ( argb != currentColorARGB )
                     {
-                        currentColor = argb;
-                        color = new Color( argb );
-                        graphics.setColor( color );
+                        currentColorARGB = argb;
+                        graphics.setColor( getColor( argb ) );
                     }
                     graphics.drawLine( x0, y0, x1, y1 );
                 }
             }
         }
 
-        graphics.drawString( "Camera @ " + Utils.prettyPrint( camera.getPosition() ) , 15, 15);
-        graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, 35);
+        if ( RENDER_DEBUG_INFO)
+        {
+            graphics.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, 15);
+            graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, 35);
+        }
     }
 }

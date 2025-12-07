@@ -130,11 +130,12 @@ public class RendererTest extends JFrame
         {
             private float angle = 0;
 
+            private final float rotSpeed = 4;
             @Override
             public void actionPerformed(ActionEvent ev)
             {
                 RendererTest.this.handleInput();
-                bodies.forEach( b -> b.setRotation( angle,angle*0.5f,0 ) );
+                bodies.forEach( b -> b.setRotation( angle*rotSpeed*0.7f,angle*rotSpeed*0.5f,angle*rotSpeed*0.33f ) );
                 angle += (float) ((0.3*2 * Math.PI) / 360);
                 panel.repaint();
 //            if ( needsRendering )

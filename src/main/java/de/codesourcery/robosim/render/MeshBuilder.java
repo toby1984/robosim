@@ -24,6 +24,20 @@ public class MeshBuilder
 
     private final Vector3f tmp = new Vector3f();
 
+    /**
+     * Adds a triangle, assumption is vertex winding is in counter clock-wise order (just like OpenGL).
+     * @param x0 X coordinate of first vertex
+     * @param y0 Y coordinate of first vertex
+     * @param z0 Z coordinate of first vertex
+     * @param x1 X coordinate of second vertex
+     * @param y1 Y coordinate of second vertex
+     * @param z1 Z coordinate of second vertex
+     * @param x2 X coordinate of third vertex
+     * @param y2 Y coordinate of third vertex
+     * @param z2 Z coordinate of third vertex
+     * @param argb vertex color in ARGB
+     * @return this instance (for chaining)
+     */
     public MeshBuilder addTriangle(float x0, float y0, float z0,
                                    float x1, float y1, float z1,
                                    float x2, float y2, float z2, int argb)
@@ -38,6 +52,13 @@ public class MeshBuilder
         return this;
     }
 
+    /**
+     * Calculates triangle normal, assumption is vertex winding is in counter clock-wise order (just like OpenGL).
+     * @param p0
+     * @param p1
+     * @param p2
+     * @param result
+     */
     private void calculateNormalVector(Vector3f p0,Vector3f p1, Vector3f p2,Vector3f result)
     {
         calculateNormalVector(
@@ -46,6 +67,20 @@ public class MeshBuilder
             p2.x, p2.y, p2.z, result );
     }
 
+    /**
+     * Calculates triangle normal, assumption is vertex winding is in counter clock-wise order (just like OpenGL).
+     *
+     * @param x0
+     * @param y0
+     * @param z0
+     * @param x1
+     * @param y1
+     * @param z1
+     * @param x2
+     * @param y2
+     * @param z2
+     * @param result
+     */
     private void calculateNormalVector(float x0, float y0, float z0,
                                        float x1, float y1, float z1,
                                        float x2, float y2, float z2, Vector3f result)
@@ -120,11 +155,28 @@ public class MeshBuilder
         indices[indexPtr++] = idx;
     }
 
+    /**
+     * Add triangle , vertices must be in counter clock-wise winding order!
+     * @param p0
+     * @param p1
+     * @param p2
+     * @param argb
+     * @return
+     */
     public MeshBuilder addTriangle(Vector3f p0, Vector3f p1, Vector3f p2, int argb)
     {
         return addTriangle( p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, argb);
     }
 
+    /**
+     * Adds a quad, vertices must be in counter clock-wise order
+     * @param p0
+     * @param p1
+     * @param p2
+     * @param p3
+     * @param argb
+     * @return
+     */
     public MeshBuilder addQuad(Vector3f p0, Vector3f p1, Vector3f p2, Vector3f p3, int argb)
     {
         calculateNormalVector( p0, p1, p2, tmp );
@@ -157,33 +209,33 @@ public class MeshBuilder
 
         // front
         final Vector3f p0 = new Vector3f(xMin, yMax, zMax);
+        final Vector3f p1 = new Vector3f(xMin, yMin, zMax);
+        final Vector3f p2 = new Vector3f(xMax, yMin, zMax);
         final Vector3f p3 = new Vector3f(xMax, yMax, zMax);
-        final Vector3f p7 = new Vector3f(xMax, yMin, zMax);
-        final Vector3f p4 = new Vector3f(xMin, yMin, zMax);
 
         // back
-        final Vector3f p2 = new Vector3f(xMax, yMax, zMin);
-        final Vector3f p1 = new Vector3f(xMin, yMax, zMin);
-        final Vector3f p5 = new Vector3f(xMin, yMin, zMin);
-        final Vector3f p6 = new Vector3f(xMax, yMin, zMin);
+        final Vector3f p7 = new Vector3f(xMin, yMax, zMin);
+        final Vector3f p6 = new Vector3f(xMin, yMin, zMin);
+        final Vector3f p5 = new Vector3f(xMax, yMin, zMin);
+        final Vector3f p4 = new Vector3f(xMax, yMax, zMin);
 
         // front surface WORKS
-          builder.addQuad( p0, p3, p7, p4, Color.RED.getRGB() );
+        builder.addQuad( p0, p1, p2, p3, Color.RED.getRGB() );
 
         // right surface
-        builder.addQuad( p3, p2, p6, p7, Color.GREEN.getRGB() );
+        builder.addQuad( p3, p2, p5, p4, Color.GREEN.getRGB() );
 
-//        // left surface
-         builder.addQuad( p1, p0, p4, p5, Color.YELLOW.getRGB() );
-//
-//        // back surface WORKS
-        builder.addQuad( p2, p1, p5, p6, Color.PINK.getRGB() );
-//
-//        // top surface
-        builder.addQuad( p1, p2, p3, p0, Color.LIGHT_GRAY.getRGB() );
-//
-//        // bottom surface
-         builder.addQuad( p1, p2, p3, p0, Color.CYAN.getRGB() );
+        // left surface
+        builder.addQuad( p7, p6, p1, p0, Color.BLUE.getRGB() );
+
+        // back surface WORKS
+        builder.addQuad( p4, p5, p6, p7, Color.CYAN.getRGB() );
+
+        // top surface
+        builder.addQuad( p7, p0, p3, p4, Color.LIGHT_GRAY.getRGB() );
+
+        // bottom surface
+        builder.addQuad( p1, p6, p5, p2, Color.MAGENTA.getRGB() );
 
         return builder.build();
     }
@@ -209,7 +261,7 @@ public class MeshBuilder
             addTriangle( cx,cy,cz,
                 points[offset0],points[offset0+1],points[offset0+2],
                 points[offset1],points[offset1+1],points[offset1+2],argb
-                );
+            );
         }
     }
 

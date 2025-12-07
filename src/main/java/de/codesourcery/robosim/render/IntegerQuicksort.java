@@ -18,11 +18,11 @@ public class IntegerQuicksort {
      * * @param arr The primitive int array to be sorted.
      * @param c The Comparator<Integer> defining the custom sort order.
      */
-    public static void sort(int[] arr, IntComparator c) {
-        if (arr == null || arr.length < 2) {
+    public static void sort(int[] arr, int len, IntComparator c) {
+        if (arr == null || len < 2) {
             return;
         }
-        quickSort(arr, 0, arr.length - 1, c);
+        quickSort(arr, 0, len - 1, c);
     }
 
     // --- Private Recursive QuickSort Implementation ---
