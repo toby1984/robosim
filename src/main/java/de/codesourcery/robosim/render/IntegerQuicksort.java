@@ -1,7 +1,5 @@
 package de.codesourcery.robosim.render;
 
-import java.util.Comparator;
-
 /**
  * A custom QuickSort implementation for primitive int[] arrays that uses a
  * Comparator<Integer> to define the sorting order, avoiding full array boxing.
@@ -14,15 +12,17 @@ public class IntegerQuicksort {
     }
 
     /**
-     * Public entry point to sort the entire array.
-     * * @param arr The primitive int array to be sorted.
+     * Sort the first N elements of an integer array.
+     *
+     * @param arr array to be sorted
+     * @param sortLen number of elements in the array that should be sorted
      * @param c The Comparator<Integer> defining the custom sort order.
      */
-    public static void sort(int[] arr, int len, IntComparator c) {
-        if (arr == null || len < 2) {
+    public static void sort(int[] arr, int sortLen, IntComparator c) {
+        if (arr == null || sortLen < 2) {
             return;
         }
-        quickSort(arr, 0, len - 1, c);
+        quickSort(arr, 0, sortLen - 1, c);
     }
 
     // --- Private Recursive QuickSort Implementation ---

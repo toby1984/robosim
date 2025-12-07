@@ -10,6 +10,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import org.joml.Vector2i;
 import org.joml.Vector3f;
 import de.codesourcery.robosim.render.Body;
 import de.codesourcery.robosim.render.Camera;
@@ -29,8 +32,7 @@ import de.codesourcery.robosim.render.MeshRenderer;
 
 public class RendererTest extends JFrame
 {
-    private static final float CAM_ROTATION = 0.1f;
-    private static final float CAM_TRANSLATION = 0.9f;
+    private static final float CAM_TRANSLATION = 1f;
     private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
 
     private final List<Body> bodies=new ArrayList<>();
@@ -67,6 +69,7 @@ public class RendererTest extends JFrame
         }
     };
 
+    private float pitchDeltaRad, yawDeltaRad;
     private final Set<Integer> pressedKeys = new HashSet<>();
 
     public RendererTest() throws HeadlessException
@@ -94,6 +97,48 @@ public class RendererTest extends JFrame
                 pressedKeys.remove( e.getKeyCode() );
             }
         } );
+        final MouseAdapter mouseAdapter = new MouseAdapter() {
+
+            private boolean isDragging;
+            private final Vector2i dragStart = new Vector2i();
+
+            private final int mouseButton = MouseEvent.BUTTON1;
+
+            @Override
+            public void mouseDragged(MouseEvent e)
+            {
+                if ( isDragging ) {
+                    final int dx = e.getX() - dragStart.x;
+                    final float xPerc = dx / (float) getWidth();
+                    final int dy = e.getY() - dragStart.y;
+                    final float yPerc = dy / (float) getHeight();
+
+                    final float TEN_DEGREES = (float) ((2 * Math.PI / 360) * 0.1);
+                    pitchDeltaRad = yPerc * TEN_DEGREES;
+                    yawDeltaRad = xPerc * TEN_DEGREES;
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e)
+            {
+                if ( ! isDragging && e.getButton() == mouseButton ) {
+                    isDragging = true;
+                    dragStart.set(e.getX(), e.getY());
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e)
+            {
+                if ( isDragging && e.getButton() == mouseButton )
+                {
+                    isDragging = false;
+                }
+            }
+        };
+        panel.addMouseListener( mouseAdapter );
+        panel.addMouseMotionListener( mouseAdapter );
         getContentPane().add( panel );
         setPreferredSize( new Dimension( 640, 480 ) );
         setLocationRelativeTo(null);
@@ -102,27 +147,31 @@ public class RendererTest extends JFrame
     }
 
     private void handleInput() {
-        boolean cameraViewChanged = false;
-        if ( pressedKeys.contains( KeyEvent.VK_W ) ) {
-            cam.translate( 0, 0, -CAM_TRANSLATION ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_A ) ) {
-            cam.translate( -CAM_TRANSLATION, 0, 0 ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_S ) ) {
-            cam.translate( 0, 0, CAM_TRANSLATION ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_D ) ) {
-            cam.translate( CAM_TRANSLATION, 0, 0 ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) {
-            cam.translate( 0, CAM_TRANSLATION, 0 ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_MINUS ) ) {
-            cam.translate( 0, -CAM_TRANSLATION, 0 ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_Q ) ) {
-            cam.rotate( (float) ((2 * Math.PI / 360) * CAM_ROTATION) ); cameraViewChanged = true;
-        } else if ( pressedKeys.contains( KeyEvent.VK_E ) ) {
-            cam.rotate( (float) ((2 * Math.PI / 360) * -CAM_ROTATION) ); cameraViewChanged = true;
+        if ( pressedKeys.contains( KeyEvent.VK_W ) ) { // forward
+            cam.moveForward( CAM_TRANSLATION ); needsRendering = true;
         }
-        if ( cameraViewChanged ) {
-            cam.updateViewMatrix();
-            needsRendering = true;
+        else if ( pressedKeys.contains( KeyEvent.VK_A ) ) { // left
+            cam.moveRight( -CAM_TRANSLATION ); needsRendering = true;
+        }
+        else if ( pressedKeys.contains( KeyEvent.VK_S ) ) { // backward
+            cam.moveForward( -CAM_TRANSLATION ); needsRendering = true;
+        }
+        else if ( pressedKeys.contains( KeyEvent.VK_D ) ) { // right
+            cam.moveRight( CAM_TRANSLATION ); needsRendering = true;
+        }
+        else if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) { // up
+            cam.moveUp( CAM_TRANSLATION ); needsRendering = true;
+        }
+        else if ( pressedKeys.contains( KeyEvent.VK_MINUS ) ) { // down
+            cam.moveUp( -CAM_TRANSLATION ); needsRendering = true;
+        }
+        else if ( yawDeltaRad != 0 ) {
+            cam.changeYawRelative( yawDeltaRad ); needsRendering = true;
+            yawDeltaRad = 0;
+        }
+        else if ( pressedKeys.contains( KeyEvent.VK_E ) ) {
+            cam.changePitchRelative( pitchDeltaRad ); needsRendering = true;
+            pitchDeltaRad = 0;
         }
     }
 
@@ -130,34 +179,32 @@ public class RendererTest extends JFrame
         final Timer timer = new Timer( 16, new ActionListener()
         {
             private final Vector3f angle = new Vector3f( 0, 0, 0 );
-            private static float degToRad(float deg) {
-                return (float)  Math.toRadians( deg );
-            }
-            private final Vector3f incrementsInDeg = new Vector3f( 1, 2, 3 );
 
-            private final Random rnd = new Random( 0xdeadbeef );
+            private static final float ONE_DEGREE_IN_RAD = (float) (2*Math.PI)/360;
+            private final Vector3f incrementsInDeg = new Vector3f(ONE_DEGREE_IN_RAD,ONE_DEGREE_IN_RAD,ONE_DEGREE_IN_RAD);
+
+            private final Random rnd = new Random( 0xdeadbeefL );
 
             private int cnt = 0;
             @Override
             public void actionPerformed(ActionEvent ev)
             {
-                cnt++;
                 RendererTest.this.handleInput();
 
-                angle.x += degToRad( incrementsInDeg.x );
-                angle.y += degToRad( incrementsInDeg.y*1.33f );
-                angle.z += degToRad( incrementsInDeg.z*1.5f );
+                angle.x += incrementsInDeg.x;
+                angle.y += incrementsInDeg.y;
+                angle.z += incrementsInDeg.z;
                 bodies.forEach( b -> b.setRotation( angle ) );
-                if ( (cnt % 100) == 0 ) {
+                if ( (cnt++ % 100) == 0 ) {
                     float r = rnd.nextFloat();
                     if ( r < 0.3f ) {
-                        incrementsInDeg.x = 0.1f+rnd.nextFloat()*0.1f;
+                        incrementsInDeg.x = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
                     }
                     else  if ( r < 0.7f )
                     {
-                        incrementsInDeg.y = 0.1f+rnd.nextFloat()*0.1f;
+                        incrementsInDeg.y = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
                     } else {
-                        incrementsInDeg.z = 0.1f+rnd.nextFloat()*0.1f;
+                        incrementsInDeg.z = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
                     }
                 }
                 panel.repaint();
@@ -182,7 +229,7 @@ public class RendererTest extends JFrame
         // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
         // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
         // final Body cube1 = new Body( MeshBuilder.createCube( 50 ) );
-        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 16 ) );
+        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
         cube1.setPosition( 0,0,-50 );
         // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
         // cube2.setPosition( 50,0,-50 );

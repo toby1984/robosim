@@ -19,10 +19,14 @@ public class Camera
     private final FrustumIntersection frustum = new FrustumIntersection();
 
     // Camera properties (can be expanded)
-    private float rotationInRadians = 0f;
     private final Vector3f position = new Vector3f( 0f, 0f, 0f );
-    private final Vector3f target = new Vector3f( 0f, 0f, -1f );
+    private float pitch,yaw;
+
+    private static final Vector3f WORLD_UP = new Vector3f( 0f, 1f, 0f );
+
+    private final Vector3f forward = new Vector3f( 0f, 0f, -1f );
     private final Vector3f up = new Vector3f( 0f, 1f, 0f );
+    private final Vector3f right = new Vector3f( 1f, 0f, 0f );
 
     private float fov = (float) Math.toRadians( 70.0 );
     private float aspectRatio = 16f / 9f;
@@ -59,25 +63,34 @@ public class Camera
         this.position.set( x, y, z );
     }
 
-    public void translate(float x, float y, float z)
-    {
-        this.position.add( x, y, z );
-        this.target.add( x, y, z );
+    public void moveForward(float delta) {
+        this.position.add( forward.x * delta, forward.y * delta, forward.z * delta );
+        updateCameraVectors();
     }
 
-    public void rotate(float angleInRad)
-    {
-        this.rotationInRadians += angleInRad;
+    public void moveRight(float delta) {
+        this.position.add( right.x * delta, right.y * delta, right.z * delta );
+        updateCameraVectors();
     }
 
-    public void lookAt(float x, float y, float z)
-    {
-        this.target.set( x, y, z );
+    public void moveUp(float delta) {
+        this.position.add( up.x * delta, up.y * delta, up.z * delta );
+        updateCameraVectors();
+    }
+
+    public void changeYawRelative(float deltaInRad) {
+        this.yaw += deltaInRad;
+        updateCameraVectors();
+    }
+
+    public void changePitchRelative(float deltaInRad) {
+        this.pitch += deltaInRad;
+        updateCameraVectors();
     }
 
     public void updateAll()
     {
-        updateViewMatrix(false);
+        updateCameraVectors(false);
         updateProjectionMatrix(true);
     }
 
@@ -102,13 +115,11 @@ public class Camera
 
     private void updateViewMatrix(boolean updatePVM)
     {
-        this.viewMatrix.setLookAt( position, target, up );
-
-        if ( rotationInRadians != 0 )
-        {
-            final Matrix4f rotationMatrix = new Matrix4f().rotateY( rotationInRadians );
-            viewMatrix.set( rotationMatrix.mul( viewMatrix ) );
-        }
+        this.viewMatrix.lookAt(
+            position.x, position.y, position.z,
+            position.x + forward.x*1000, position.y + forward.y*1000, position.z + forward.z*1000,
+            up.x, up.y, up.z
+        );
 
         this.viewMatrix.invertAffine( inverseViewMatrix );
         invertedTransposedViewMatrix.set( inverseViewMatrix ).transpose();
@@ -121,7 +132,7 @@ public class Camera
 
     public Vector3f getTarget()
     {
-        return target;
+        return forward;
     }
 
     public Vector3f getPosition()
@@ -137,5 +148,28 @@ public class Camera
     public Matrix4f getInvertedTransposedViewMatrix()
     {
         return invertedTransposedViewMatrix;
+    }
+
+    private void updateCameraVectors() {
+        updateCameraVectors(true);
+    }
+
+    private void updateCameraVectors(boolean updatePVM)
+    {
+        // Calculate the new forward vector (normalized direction the camera is looking)
+        forward.x = (float) (Math.cos(yaw) * Math.cos(pitch));
+        forward.y = (float)  Math.sin(pitch);
+        forward.z = (float) (Math.sin(yaw) * Math.cos(pitch));
+        forward.normalize();
+
+        // Calculate the right vector: Cross product of forward and world up.
+        // This must be normalized after calculation.
+        forward.cross(WORLD_UP, right).normalize();
+
+        // Calculate the up vector: Cross product of right and forward.
+        // This is the camera's local "up" direction.
+        right.cross( forward, up).normalize();
+
+        updateViewMatrix(updatePVM);
     }
 }

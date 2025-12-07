@@ -14,6 +14,7 @@ public class MeshRenderer
 {
     private static final boolean RENDER_NORMALS = false;
     private static final boolean RENDER_DEBUG_INFO = false;
+    private static final boolean RENDER_FPS = true;
 
     // light position in VIEW space
     private static final Vector3f LIGHT_POS = new Vector3f(0,100,100);
@@ -52,7 +53,16 @@ public class MeshRenderer
         return colorMap.computeIfAbsent( argb, Color::new );
     }
 
+    private float sumFrameTimes;
+    private long frameCount;
+
     public void render(BufferedImage image, Graphics2D graphics, List<Body> bodies) {
+
+        long renderStartTime;
+        if ( RENDER_FPS )
+        {
+            renderStartTime = System.nanoTime();
+        }
 
         // some temporary variables
         final Vector3f p0 = new Vector3f();
@@ -258,10 +268,27 @@ public class MeshRenderer
             }
         }
 
+        int y = 15;
+        if ( RENDER_FPS ) {
+            final long renderEnd = System.nanoTime();
+            final float elapsedMillis = (renderEnd - renderStartTime) / 1_000_000f;
+            sumFrameTimes += elapsedMillis;
+            frameCount++;
+            final float avgMillisPerFrame = sumFrameTimes / frameCount;
+            graphics.setColor( Color.WHITE );
+            graphics.drawString( "Avg. millis per frame: "+Math.round(avgMillisPerFrame*100f)/100f,15, y );
+            y += 20;
+            if ( frameCount == 3600 ) { // moving average
+                sumFrameTimes = 0;
+                frameCount = 0;
+            }
+        }
         if ( RENDER_DEBUG_INFO)
         {
-            graphics.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, 15);
-            graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, 35);
+            graphics.setColor( Color.WHITE );
+            graphics.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, y);
+            y += 20;
+            graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, y);
         }
     }
 
