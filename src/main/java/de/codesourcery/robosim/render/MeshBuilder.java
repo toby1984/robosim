@@ -6,6 +6,8 @@ import org.joml.Vector3f;
 
 public class MeshBuilder
 {
+    public static final boolean USE_DEBUG_COLORS = false;
+
     public static final int ATTR_VERTEX_X     = 0;
     public static final int ATTR_VERTEX_Y     = 1;
     public static final int ATTR_VERTEX_Z     = 2;
@@ -195,7 +197,7 @@ public class MeshBuilder
         return this;
     }
 
-    public static Mesh createCube(float dimension) {
+    public static Mesh createCube(float dimension, int argb) {
 
         final MeshBuilder builder = new MeshBuilder();
 
@@ -220,22 +222,22 @@ public class MeshBuilder
         final Vector3f p4 = new Vector3f(xMax, yMax, zMin);
 
         // front surface WORKS
-        builder.addQuad( p0, p1, p2, p3, Color.RED.getRGB() );
+        builder.addQuad( p0, p1, p2, p3, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb );
 
         // right surface
-        builder.addQuad( p3, p2, p5, p4, Color.GREEN.getRGB() );
+        builder.addQuad( p3, p2, p5, p4, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb );
 
         // left surface
-        builder.addQuad( p7, p6, p1, p0, Color.BLUE.getRGB() );
+        builder.addQuad( p7, p6, p1, p0, USE_DEBUG_COLORS ? Color.BLUE.getRGB() : argb );
 
         // back surface WORKS
-        builder.addQuad( p4, p5, p6, p7, Color.CYAN.getRGB() );
+        builder.addQuad( p4, p5, p6, p7, USE_DEBUG_COLORS ? Color.CYAN.getRGB() : argb );
 
         // top surface
-        builder.addQuad( p7, p0, p3, p4, Color.LIGHT_GRAY.getRGB() );
+        builder.addQuad( p7, p0, p3, p4, USE_DEBUG_COLORS ? Color.LIGHT_GRAY.getRGB() : argb );
 
         // bottom surface
-        builder.addQuad( p1, p6, p5, p2, Color.MAGENTA.getRGB() );
+        builder.addQuad( p1, p6, p5, p2, USE_DEBUG_COLORS ? Color.MAGENTA.getRGB() : argb );
 
         return builder.build();
     }
@@ -271,7 +273,7 @@ public class MeshBuilder
         }
     }
 
-    public static Mesh createCylinder( float length, float diameter, int subdivisions) {
+    public static Mesh createCylinder( float length, float diameter, int subdivisions, int argb) {
 
         final MeshBuilder builder = new MeshBuilder();
 
@@ -297,7 +299,6 @@ public class MeshBuilder
             float y0 = (float) (radius * Math.sin( angle0 ));
 
             // render tube using quads
-//            if ( (i+1) < subdivisions ) {
             {
                 final float angle1 = (i+1) * angleStep;
                 float z1 = (float) (radius * Math.cos( angle1 ));
@@ -308,7 +309,7 @@ public class MeshBuilder
                 p2.set( xMax, y1, z1 );
                 p3.set( xMax, y0, z0 );
 
-                builder.addQuad( p3, p2, p1, p0, colors[ i % colors.length].getRGB() );
+                builder.addQuad( p3, p2, p1, p0, USE_DEBUG_COLORS ? colors[ i % colors.length].getRGB() : argb );
             }
 
             // points of triangle strips need to be wound in clock-wise order
@@ -330,8 +331,8 @@ public class MeshBuilder
             rightVertices[ptr+2] = z1;
         }
 
-        builder.addTriangleStrip( xMin, 0, 0, leftVertices, Color.GREEN.getRGB() );
-        builder.addTriangleStrip( xMax, 0, 0, rightVertices, Color.RED.getRGB() );
+        builder.addTriangleStrip( xMin, 0, 0, leftVertices, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb );
+        builder.addTriangleStrip( xMax, 0, 0, rightVertices, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb );
 
         return builder.build();
     }

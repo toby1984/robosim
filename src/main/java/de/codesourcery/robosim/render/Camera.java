@@ -3,6 +3,7 @@ package de.codesourcery.robosim.render;
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import de.codesourcery.robosim.Utils;
 
 public class Camera
 {
@@ -20,7 +21,7 @@ public class Camera
 
     // Camera properties (can be expanded)
     private final Vector3f position = new Vector3f( 0f, 0f, 0f );
-    private float pitch,yaw;
+    public float pitch,yaw;
 
     private static final Vector3f WORLD_UP = new Vector3f( 0f, 1f, 0f );
 
@@ -78,13 +79,13 @@ public class Camera
         updateCameraVectors();
     }
 
-    public void changeYawRelative(float deltaInRad) {
-        this.yaw += deltaInRad;
+    public void setYaw(float yawInRad) {
+        this.yaw = yawInRad;
         updateCameraVectors();
     }
 
-    public void changePitchRelative(float deltaInRad) {
-        this.pitch += deltaInRad;
+    public void setPitch(float newPitch) {
+        this.pitch = (float) Utils.clamp( newPitch, 0.90*(-Math.PI / 2), 0.90*(Math.PI / 2) );
         updateCameraVectors();
     }
 
@@ -115,14 +116,10 @@ public class Camera
 
     private void updateViewMatrix(boolean updatePVM)
     {
-        this.viewMatrix.lookAt(
-            position.x, position.y, position.z,
-            position.x + forward.x*1000, position.y + forward.y*1000, position.z + forward.z*1000,
-            up.x, up.y, up.z
-        );
-
+        final Vector3f center = position.add( forward, new Vector3f() );
+        this.viewMatrix.setLookAt(position,center,up);
         this.viewMatrix.invertAffine( inverseViewMatrix );
-        invertedTransposedViewMatrix.set( inverseViewMatrix ).transpose();
+        inverseViewMatrix.transpose(invertedTransposedViewMatrix);
 
         if ( updatePVM )
         {
@@ -140,11 +137,6 @@ public class Camera
         return position;
     }
 
-    public Matrix4f getInverseViewMatrix()
-    {
-        return inverseViewMatrix;
-    }
-
     public Matrix4f getInvertedTransposedViewMatrix()
     {
         return invertedTransposedViewMatrix;
@@ -157,9 +149,9 @@ public class Camera
     private void updateCameraVectors(boolean updatePVM)
     {
         // Calculate the new forward vector (normalized direction the camera is looking)
-        forward.x = (float) (Math.cos(yaw) * Math.cos(pitch));
-        forward.y = (float)  Math.sin(pitch);
-        forward.z = (float) (Math.sin(yaw) * Math.cos(pitch));
+        forward.x = (float) (Math.sin(yaw) * Math.cos(pitch));
+        forward.y = (float) Math.sin(pitch);
+        forward.z = (float) (-Math.cos(yaw) * Math.cos(pitch));
         forward.normalize();
 
         // Calculate the right vector: Cross product of forward and world up.

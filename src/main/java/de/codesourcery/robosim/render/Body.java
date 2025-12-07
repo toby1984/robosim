@@ -13,22 +13,21 @@ public class Body
     private final Matrix4f modelMatrix = new Matrix4f();
     private final Mesh mesh;
 
-    private final BoundingBox initialBoundingBox;
-    private BoundingBox transformedBoundingBox;
+    private BoundingBox axisAlignedBB;
 
     public Body(Mesh mesh) {
         Validate.notNull( mesh, "mesh must not be null" );
         this.mesh = mesh;
-        this.initialBoundingBox = mesh.createBoundingBox();
     }
 
-    public BoundingBox getBoundingBox()
+    public BoundingBox getAABB()
     {
-        if ( transformedBoundingBox == null ) {
-            transformedBoundingBox = new BoundingBox( initialBoundingBox );
-            transformedBoundingBox.transform( modelMatrix );
+        if ( axisAlignedBB == null ) {
+            final AABBCalculator visitor = new AABBCalculator();
+            mesh.visitVertices( visitor );
+            axisAlignedBB = visitor.getBoundingBox();
         }
-        return transformedBoundingBox;
+        return axisAlignedBB;
     }
 
     public Vector3f position() {
@@ -51,7 +50,8 @@ public class Body
     private void updateMatrix() {
         Matrix4f rot = new  Matrix4f().rotateAffineXYZ( rotation.x,rotation.y,rotation.z );
         modelMatrix.translation( position ).mul( rot );
-        transformedBoundingBox = null;
+        // invalidate AABB
+        axisAlignedBB = null;
     }
 
     public void setRotation(Vector3f v) {
@@ -61,5 +61,29 @@ public class Body
     public void setRotation(float x, float y, float z) {
         rotation.set(x,y,z);
         updateMatrix();
+    }
+
+    private class AABBCalculator implements Mesh.VertexVisitor
+    {
+        private float xMin=Float.MAX_VALUE, yMin=Float.MAX_VALUE, zMin=Float.MAX_VALUE;
+        private float xMax=Float.MIN_VALUE, yMax=Float.MIN_VALUE, zMax=Float.MIN_VALUE;
+        private final Vector3f p = new Vector3f();
+
+        @Override
+        public void visit(float x, float y, float z)
+        {
+            modelMatrix.transformPosition( x, y, z, p);
+            xMin = Math.min( xMin, p.x );
+            yMin = Math.min( yMin, p.y );
+            zMin = Math.min( zMin, p.z );
+            xMax = Math.max( xMax, p.x );
+            yMax = Math.max( yMax, p.y );
+            zMax = Math.max( zMax, p.z );
+        }
+
+        public BoundingBox getBoundingBox()
+        {
+            return new BoundingBox( new Vector3f(xMin, yMin, zMin), new Vector3f(xMax, yMax, zMax) );
+        }
     }
 }

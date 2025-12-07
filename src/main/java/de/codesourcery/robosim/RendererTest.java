@@ -35,6 +35,8 @@ public class RendererTest extends JFrame
     private static final float CAM_TRANSLATION = 1f;
     private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
 
+    public static final boolean ROTATE_BODIES = true;
+
     private final List<Body> bodies=new ArrayList<>();
     private final Camera cam = new Camera();
 
@@ -69,7 +71,8 @@ public class RendererTest extends JFrame
         }
     };
 
-    private float pitchDeltaRad, yawDeltaRad;
+    private boolean camAngleChanged;
+    private float newPitch, newYaw;
     private final Set<Integer> pressedKeys = new HashSet<>();
 
     public RendererTest() throws HeadlessException
@@ -101,6 +104,7 @@ public class RendererTest extends JFrame
 
             private boolean isDragging;
             private final Vector2i dragStart = new Vector2i();
+            private float initialPitch, initialYaw;
 
             private final int mouseButton = MouseEvent.BUTTON1;
 
@@ -109,13 +113,13 @@ public class RendererTest extends JFrame
             {
                 if ( isDragging ) {
                     final int dx = e.getX() - dragStart.x;
-                    final float xPerc = dx / (float) getWidth();
                     final int dy = e.getY() - dragStart.y;
-                    final float yPerc = dy / (float) getHeight();
 
-                    final float TEN_DEGREES = (float) ((2 * Math.PI / 360) * 0.1);
-                    pitchDeltaRad = yPerc * TEN_DEGREES;
-                    yawDeltaRad = xPerc * TEN_DEGREES;
+                    final float PITCH_DEGREES = 0.005f;
+                    final float YAW_DEGREES = 0.005f;
+                    newPitch = initialPitch + dy * PITCH_DEGREES;
+                    newYaw = initialYaw + -dx * YAW_DEGREES;
+                    camAngleChanged = true;
                 }
             }
 
@@ -124,6 +128,8 @@ public class RendererTest extends JFrame
             {
                 if ( ! isDragging && e.getButton() == mouseButton ) {
                     isDragging = true;
+                    initialPitch = cam.pitch;
+                    initialYaw = cam.yaw;
                     dragStart.set(e.getX(), e.getY());
                 }
             }
@@ -150,28 +156,28 @@ public class RendererTest extends JFrame
         if ( pressedKeys.contains( KeyEvent.VK_W ) ) { // forward
             cam.moveForward( CAM_TRANSLATION ); needsRendering = true;
         }
-        else if ( pressedKeys.contains( KeyEvent.VK_A ) ) { // left
-            cam.moveRight( -CAM_TRANSLATION ); needsRendering = true;
-        }
         else if ( pressedKeys.contains( KeyEvent.VK_S ) ) { // backward
             cam.moveForward( -CAM_TRANSLATION ); needsRendering = true;
+        }
+
+        if ( pressedKeys.contains( KeyEvent.VK_A ) ) { // left
+            cam.moveRight( -CAM_TRANSLATION ); needsRendering = true;
         }
         else if ( pressedKeys.contains( KeyEvent.VK_D ) ) { // right
             cam.moveRight( CAM_TRANSLATION ); needsRendering = true;
         }
-        else if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) { // up
+
+        if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) { // up
             cam.moveUp( CAM_TRANSLATION ); needsRendering = true;
         }
         else if ( pressedKeys.contains( KeyEvent.VK_MINUS ) ) { // down
             cam.moveUp( -CAM_TRANSLATION ); needsRendering = true;
         }
-        else if ( yawDeltaRad != 0 ) {
-            cam.changeYawRelative( yawDeltaRad ); needsRendering = true;
-            yawDeltaRad = 0;
-        }
-        else if ( pressedKeys.contains( KeyEvent.VK_E ) ) {
-            cam.changePitchRelative( pitchDeltaRad ); needsRendering = true;
-            pitchDeltaRad = 0;
+        if ( camAngleChanged ) {
+            cam.setYaw( newYaw );
+            cam.setPitch( newPitch );
+            camAngleChanged = false;
+            needsRendering = true;
         }
     }
 
@@ -191,20 +197,27 @@ public class RendererTest extends JFrame
             {
                 RendererTest.this.handleInput();
 
-                angle.x += incrementsInDeg.x;
-                angle.y += incrementsInDeg.y;
-                angle.z += incrementsInDeg.z;
-                bodies.forEach( b -> b.setRotation( angle ) );
-                if ( (cnt++ % 100) == 0 ) {
-                    float r = rnd.nextFloat();
-                    if ( r < 0.3f ) {
-                        incrementsInDeg.x = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
-                    }
-                    else  if ( r < 0.7f )
+                if ( ROTATE_BODIES )
+                {
+                    angle.x += incrementsInDeg.x;
+                    angle.y += incrementsInDeg.y;
+                    angle.z += incrementsInDeg.z;
+                    bodies.forEach( b -> b.setRotation( angle ) );
+                    if ( (cnt++ % 100) == 0 )
                     {
-                        incrementsInDeg.y = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
-                    } else {
-                        incrementsInDeg.z = (0.5f+rnd.nextFloat()*ONE_DEGREE_IN_RAD)/100;
+                        float r = rnd.nextFloat();
+                        if ( r < 0.3f )
+                        {
+                            incrementsInDeg.x = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
+                        }
+                        else if ( r < 0.7f )
+                        {
+                            incrementsInDeg.y = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
+                        }
+                        else
+                        {
+                            incrementsInDeg.z = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
+                        }
                     }
                 }
                 panel.repaint();
@@ -229,7 +242,8 @@ public class RendererTest extends JFrame
         // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
         // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
         // final Body cube1 = new Body( MeshBuilder.createCube( 50 ) );
-        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
+//        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
+        final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 30, 32, Color.LIGHT_GRAY.getRGB() ) );
         cube1.setPosition( 0,0,-50 );
         // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
         // cube2.setPosition( 50,0,-50 );

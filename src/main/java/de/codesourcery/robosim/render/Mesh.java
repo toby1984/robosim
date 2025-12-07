@@ -6,25 +6,14 @@ import org.joml.Vector3f;
 
 public class Mesh
 {
-    public int attributesPerVertex = 3;
-    public float[] vertices;
-    public int[] indices;
-
     public interface VertexVisitor {
         void visit(float x, float y, float z);
-    }
-
-    public Mesh(int attributesPerVertex, int[] indices, float[] vertices)
-    {
-        this.attributesPerVertex = attributesPerVertex;
-        this.vertices = vertices;
-        this.indices = indices;
     }
 
     private static final class BBVisitor implements VertexVisitor
     {
         public float minX=Float.MAX_VALUE, minY=Float.MAX_VALUE, minZ=Float.MAX_VALUE,
-                     maxX=Float.MIN_VALUE, maxY=Float.MIN_VALUE, maxZ=Float.MIN_VALUE;
+            maxX=Float.MIN_VALUE, maxY=Float.MIN_VALUE, maxZ=Float.MIN_VALUE;
 
         @Override
         public void visit(float x, float y, float z)
@@ -37,6 +26,17 @@ public class Mesh
             maxY = Math.max(maxY, y);
             maxZ = Math.max(maxZ, z);
         }
+    }
+
+    public int attributesPerVertex = 3;
+    public float[] vertices;
+    public int[] indices;
+
+    public Mesh(int attributesPerVertex, int[] indices, float[] vertices)
+    {
+        this.attributesPerVertex = attributesPerVertex;
+        this.vertices = vertices;
+        this.indices = indices;
     }
 
     public BoundingBox createBoundingBox() {
@@ -105,30 +105,11 @@ public class Mesh
         return indices.length / 3;
     }
 
-    /**
-     *
-     * @param vertexNo vertex index
-     * @param result
-     */
     public void getVertexCoords(int vertexNo, Vector3f result) {
         final int offset = vertexNo * attributesPerVertex;
         result.x = vertices[offset + MeshBuilder.ATTR_VERTEX_X];
         result.y = vertices[offset + MeshBuilder.ATTR_VERTEX_Y];
         result.z = vertices[offset + MeshBuilder.ATTR_VERTEX_Z];
-    }
-
-    public void getTriangleCenterCoords(int firstIndexOffset, Vector3f result) {
-
-        float sumX=0,sumY=0,sumZ=0;
-        for ( int i = firstIndexOffset, j=3; j > 0 ; j--, i++ ) {
-            final int vertexIndex = indices[i] * attributesPerVertex;
-            sumX += vertices[ vertexIndex + MeshBuilder.ATTR_VERTEX_X ];
-            sumY += vertices[ vertexIndex + MeshBuilder.ATTR_VERTEX_Y ];
-            sumZ += vertices[ vertexIndex + MeshBuilder.ATTR_VERTEX_Z ];
-        }
-        result.x = sumX/3;
-        result.y = sumY/3;
-        result.z = sumZ/3;
     }
 
     public void getNormal(int vertexNo, Vector3f result) {
@@ -166,6 +147,11 @@ public class Mesh
         getVertexCoords( indices[firstIndexNo+2], p2 );
     }
 
+    /**
+     * Merge multiple meshes.
+     * @param meshes meshes to merge, at least 2.
+     * @return merged mesh
+     */
     public static Mesh merge(Mesh... meshes) {
 
         if ( meshes.length < 2 ) {
@@ -212,9 +198,9 @@ public class Mesh
 
     public Mesh(int attributesPerVertex) {
         final int quads = 6;
-        final int indexCnt = 8;
         final int triangles = quads * 2;
         final int vertexCnt = triangles * 3;
+        final int indexCnt = 8;
         vertices = new float[ vertexCnt * attributesPerVertex];
         indices = new int[ indexCnt ];
     }
@@ -266,28 +252,25 @@ public class Mesh
     }
 
     /**
-     * Transforms this mesh into normalized device coordinates (NDC) in
+     * Transforms a mesh into normalized device coordinates (NDC) in
      * range [-1,1].
      *
-     * @param result
-     * @param projectionMatrix
-     * @return
+     * @param meshToTransform mesh
+     * @param projectionMatrix matrix
      */
-    public static Mesh transformPerspectiveNDC(Mesh result, Matrix4f projectionMatrix)
+    public static void transformPerspectiveNDC(Mesh meshToTransform, Matrix4f projectionMatrix)
     {
         final Vector3f tmp = new Vector3f();
-        for ( int i = 0 ; i < result.vertices.length ; i+= result.attributesPerVertex ) {
+        for ( int i = 0 ; i < meshToTransform.vertices.length ; i+= meshToTransform.attributesPerVertex ) {
             // transform vertex coordinates
             projectionMatrix.transformProject(
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_X],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
+                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X],
+                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
+                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
             );
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
-
+            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
+            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
+            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
         }
-        return result;
     }
 }

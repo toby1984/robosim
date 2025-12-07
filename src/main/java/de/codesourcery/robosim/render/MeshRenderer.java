@@ -17,15 +17,17 @@ public class MeshRenderer
     private static final boolean RENDER_FPS = true;
 
     // light position in VIEW space
-    private static final Vector3f LIGHT_POS = new Vector3f(0,100,100);
 
     public final Camera camera;
 
+    private final Vector3f lightPosition = new Vector3f(0,1000,0);
+    private final float ambientLightFactor = 0.3f;
     private final boolean renderWireframe = false;
     private final boolean backFaceCulling = true;
     private final boolean depthSortBodies = true;
     private final boolean depthSortTriangles = true;
     private final boolean useFlatShading = true;
+    private final boolean useLightSource = true;
 
     private static final class Line {
         public final float x0,y0;
@@ -68,6 +70,12 @@ public class MeshRenderer
         final Vector3f p0 = new Vector3f();
         final Vector3f p1 = new Vector3f();
         final Vector3f p2 = new Vector3f();
+        final Vector3f tmp = new Vector3f();
+        final Vector3f transformedLightPos = new Vector3f();
+
+        if ( useLightSource ) {
+            camera.getViewMatrix().transformPosition( lightPosition, transformedLightPos );
+        }
 
         // transform meshes into world space and sort meshes
         // back-to-front according to their distance from the camera.
@@ -87,7 +95,7 @@ public class MeshRenderer
             // transform mesh from local space into world space
             meshes[i] = body.getMeshInWorldSpace();
             // transform BB into view space
-            final BoundingBox bbInViewSpace = body.getBoundingBox().createCopy().transform( camera.getViewMatrix() );
+            final BoundingBox bbInViewSpace = body.getAABB().createCopy().transform( camera.getViewMatrix() );
             largestZIndex[i] = bbInViewSpace.max.z;
             meshesByAscendingZIndex[i] = i;
         }
@@ -146,10 +154,24 @@ public class MeshRenderer
                             isVisible = true;
                             if ( useFlatShading )
                             {
-                                // we know that since the surface is visible, cosine must in
-                                // interval [-1,0]
-                                float cos = dotProduct / (p0.length() * p1.length());
-                                shadedColor = shadeRGB( mesh.getVertexColor( triangleVertexIndex ), -cos );
+                                if ( useLightSource )
+                                {
+                                    p1.sub( transformedLightPos, tmp );
+                                    final float dot2 = p0.dot( tmp );
+                                    final int currentColor = mesh.getVertexColor( triangleVertexIndex );
+                                    if ( dot2 <= 0 )
+                                    {
+                                        final float angle = p0.angleCos( tmp );
+                                        shadedColor = shadeRGB( currentColor, Math.max( ambientLightFactor, -angle ) );
+                                    }
+                                    else
+                                    {
+                                        shadedColor = shadeRGB( currentColor, ambientLightFactor );
+                                    }
+                                } else {
+                                    float cos = dotProduct / (p0.length() * p1.length());
+                                    shadedColor = shadeRGB( mesh.getVertexColor( triangleVertexIndex ), Math.max(ambientLightFactor, -cos) );
+                                }
                             }
                             break;
                         }
