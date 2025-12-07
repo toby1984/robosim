@@ -182,7 +182,7 @@ public class RendererTest extends JFrame
         // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
         // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
         // final Body cube1 = new Body( MeshBuilder.createCube( 50 ) );
-        final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 50, 16 ) );
+        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 16 ) );
         cube1.setPosition( 0,0,-50 );
         // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
         // cube2.setPosition( 50,0,-50 );

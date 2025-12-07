@@ -15,12 +15,16 @@ public class MeshRenderer
     private static final boolean RENDER_NORMALS = false;
     private static final boolean RENDER_DEBUG_INFO = false;
 
+    // light position in VIEW space
+    private static final Vector3f LIGHT_POS = new Vector3f(0,100,100);
+
     public final Camera camera;
 
     private final boolean renderWireframe = false;
     private final boolean backFaceCulling = true;
     private final boolean depthSortBodies = true;
     private final boolean depthSortTriangles = true;
+    private final boolean useFlatShading = true;
 
     private static final class Line {
         public final float x0,y0;
@@ -54,23 +58,24 @@ public class MeshRenderer
         final Vector3f p0 = new Vector3f();
         final Vector3f p1 = new Vector3f();
         final Vector3f p2 = new Vector3f();
-        final Vector3f avg = new Vector3f();
-        final Vector3f center0 = new Vector3f();
 
-        // sort meshes of bodies back-to-front according to distance
-        // their distance to the camera.
-        // Since in view space the camera will be at (0,0,0),
-        // a meshes largest Z-index is simply the max. Z coordinate
-        // of the meshes bounding box after transforming it into view space.
-        final float[] largestZIndex = new float[bodies.size()];
-        final Mesh[] meshesInViewSpace = new Mesh[bodies.size()];
+        // transform meshes into world space and sort meshes
+        // back-to-front according to their distance from the camera.
+        //
+        // We'll transform the meshes bounding box (that is always in world space)
+        // into view space and then, since in view space the camera will be at (0,0,0),
+        // simply order meshes ascending to their transformed BBs largest Z-index.
+
+        final float[] largestZIndex = new float[bodies.size()]; // hold's max. Z index of mesh BBs after the BB has been transformed into view spacee
+
+        final Mesh[] meshes = new Mesh[bodies.size()];
         final int[] meshesByAscendingZIndex = new int[bodies.size()];
 
         for ( int i = 0, bodiesSize = bodies.size(); i < bodiesSize; i++ )
         {
             final Body body = bodies.get( i );
             // transform mesh from local space into world space
-            meshesInViewSpace[i] = body.getMeshInWorldSpace();
+            meshes[i] = body.getMeshInWorldSpace();
             // transform BB into view space
             final BoundingBox bbInViewSpace = body.getBoundingBox().createCopy().transform( camera.getViewMatrix() );
             largestZIndex[i] = bbInViewSpace.max.z;
@@ -80,7 +85,8 @@ public class MeshRenderer
         // sort meshes ascending by their largest Z-index
         if ( depthSortBodies )
         {
-            IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length, (a, b) -> Float.compare( largestZIndex[a], largestZIndex[b] ) );
+            IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length,
+                (a, b) -> Float.compare( largestZIndex[a], largestZIndex[b] ) );
         }
 
         /*
@@ -90,7 +96,8 @@ public class MeshRenderer
 
         for ( final int meshIndex : meshesByAscendingZIndex )
         {
-            final Mesh mesh = meshesInViewSpace[meshIndex];
+            // NOTE: Meshes have been transformed into world space by code above
+            final Mesh mesh = meshes[meshIndex];
 
             // transform mesh from world space into view space,
             // taking care to multiply normals with the inverted view matrix
@@ -101,35 +108,62 @@ public class MeshRenderer
             {
                 throw new IllegalArgumentException( "Mesh indices array's length must be a multiple of 3." );
             }
-            int triangleCount = 0;
+            int visibleTriangleCount = 0;
 
             // this array holds for each visible triangle the
             // offset of that triangle's first vertex inside the meshes "indices[]" array
-            final int[] triangleIndices = new int[mesh.indices.length / 3];
+            final int[] visibleTriangleIndices = new int[mesh.indices.length / 3];
 
-            // array of vertices of all triangles that passed the
-            // back-face culling test
+            // loop over vertices of each triangle, check visibility, calculate shaded color
             for ( int i = 0; i < mesh.indices.length; i+= 3 )
             {
-                for ( int j = 2; j >= 0 ; j-- ) {
-                    final int triangleVertexIndex = i+j;
-                    mesh.getNormal( mesh.indices[triangleVertexIndex], p0 );
-                    mesh.getVertexCoords( mesh.indices[triangleVertexIndex], p1);
-                    p1.sub( camera.getPosition() );
-
-                    if ( ! backFaceCulling || p0.dot( p1 ) <= 0 )
+                boolean isVisible = false;
+                int shadedColor = 0xffffffff;
+                if ( backFaceCulling )
+                {
+                    for ( int j = 2; j >= 0; j-- )
                     {
-                        // visible, add triangle indices
-                        triangleIndices[triangleCount++] = i;
-                        break;
+                        final int triangleVertexIndex = i + j;
+                        mesh.getNormal( mesh.indices[triangleVertexIndex], p0 );
+                        mesh.getVertexCoords( mesh.indices[triangleVertexIndex], p1 );
+
+                        // NOTE: Since vertices have already been translated into VIEW space (=>camera is now at (0,0,0)
+                        //       we can simply use the vertex coordinate itself as surface->camera vector
+                        final float dotProduct = p0.dot( p1 );
+                        final boolean visible = dotProduct <= 0;
+                        if ( visible )
+                        {
+                            isVisible = true;
+                            if ( useFlatShading )
+                            {
+                                // we know that since the surface is visible, cosine must in
+                                // interval [-1,0]
+                                float cos = dotProduct / (p0.length() * p1.length());
+                                shadedColor = shadeRGB( mesh.getVertexColor( triangleVertexIndex ), -cos );
+                            }
+                            break;
+                        }
                     }
+                } else {
+                    isVisible = true;
+                }
+                if ( isVisible )
+                {
+                    if ( backFaceCulling && useFlatShading )
+                    {
+                        mesh.setVertexColor( i, shadedColor );
+                        mesh.setVertexColor( i+1, shadedColor );
+                        mesh.setVertexColor( i+2, shadedColor );
+                    }
+                    // visible, add triangle indices
+                    visibleTriangleIndices[visibleTriangleCount++] = i;
                 }
             }
 
             // sort triangles back to front
             if ( depthSortTriangles )
             {
-                IntegerQuicksort.sort( triangleIndices, triangleCount, (int triangleIdxA, int triangleIdxB) -> {
+                IntegerQuicksort.sort( visibleTriangleIndices, visibleTriangleCount, (int triangleIdxA, int triangleIdxB) -> {
                     final float z0 = mesh.getTriangleMinZ( triangleIdxA );
                     final float z1 = mesh.getTriangleMinZ( triangleIdxB );
                     return Float.compare( z0, z1 );
@@ -139,10 +173,10 @@ public class MeshRenderer
             final Line[] normals;
             if ( RENDER_NORMALS )
             {
-                normals = new Line[triangleCount * 3];
-                for ( int i = 0, ptr = 0; i < triangleCount; i++ )
+                normals = new Line[visibleTriangleCount * 3];
+                for ( int i = 0, ptr = 0; i < visibleTriangleCount; i++ )
                 {
-                    final int triangleIndex = triangleIndices[i];
+                    final int triangleIndex = visibleTriangleIndices[i];
                     for ( int j = 0; j < 3; j++ )
                     {
                         final int argb = mesh.getVertexColor( triangleIndex + j );
@@ -175,11 +209,10 @@ public class MeshRenderer
 
             final int cx = w / 2;
             final int cy = h / 2;
-            for ( int i = 0; i < triangleCount; i++ )
+            for ( int i = 0; i < visibleTriangleCount; i++ )
             {
-                final int triangleIndex = triangleIndices[i];
+                final int triangleIndex = visibleTriangleIndices[i];
 
-                // TODO: we'll currently only use the color of the triangle's first vertex
                 final int argb = mesh.getVertexColor( triangleIndex );
                 if ( argb != currentColorARGB )
                 {
@@ -203,6 +236,7 @@ public class MeshRenderer
                 }
             }
 
+            // render normals last so they do not get occluded
             if ( RENDER_NORMALS )
             {
                 for ( final Line line : normals )
@@ -229,5 +263,13 @@ public class MeshRenderer
             graphics.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, 15);
             graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, 35);
         }
+    }
+
+    private static int shadeRGB(int argb, float factor) {
+        final int a = argb & 0xff000000;
+        final int r = ((int) (factor * ( (argb & 0xff0000) >> 16 )) & 0xff);
+        final int g = ((int) (factor * ( (argb & 0x00ff00) >>  8 )) & 0xff);
+        final int b = ((int) (factor * ( (argb & 0x0000ff)       )) & 0xff);
+        return a | r << 16 | g << 8 | b;
     }
 }

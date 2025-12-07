@@ -154,6 +154,11 @@ public class Mesh
         return (int) ( vertices[ offset + MeshBuilder.ATTR_VERTEX_COLOR_ARGB] );
     }
 
+    public void setVertexColor(int indexNo, int argb) {
+        final int offset = indices[indexNo] * attributesPerVertex;
+        vertices[ offset + MeshBuilder.ATTR_VERTEX_COLOR_ARGB]  = argb;
+    }
+
     public void getTriangleVertexCoords(int firstIndexNo, Vector3f p0, Vector3f p1, Vector3f p2)
     {
         getVertexCoords( indices[firstIndexNo], p0 );
