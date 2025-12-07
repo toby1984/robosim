@@ -58,9 +58,15 @@ public class MeshBuilder
         float v2y = y2-y0;
         float v2z = z2-z0;
 
+        // dot product in counter clock-wise winding order
         float nx=v1y*v2z - v1z*v2y;
         float ny=v1z*v2x - v1x*v2z;
         float nz=v1x*v2y - v1y*v2x;
+
+        // dot product in clock-wise winding order
+//        float nx = v2y * v1z - v2z * v1y; // v2y * v1z instead of v1y * v2z
+//        float ny = v2z * v1x - v2x * v1z; // v2z * v1x instead of v1z * v2x
+//        float nz = v2x * v1y - v2y * v1x; // v2x * v1y instead of v1x * v2y
 
         float l = (float) Math.sqrt( nx * nx + ny * ny + nz * nz );
         if ( l != 0 )
