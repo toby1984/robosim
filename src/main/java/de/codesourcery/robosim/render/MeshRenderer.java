@@ -72,6 +72,9 @@ public class MeshRenderer
         // sort meshes ascending by their largest Z-index
         IntegerQuicksort.sort( meshesByAscendingZIndex, (a,b) -> Float.compare( largestZIndex[a], largestZIndex[b]) );
 
+        /*
+         * IMPORTANT: Normals need to be transformed using the TRANSPOSED inverted view matrix.
+         */
         final Matrix4f normalMatrix = new Matrix4f( camera.getInverseViewMatrix() ).transpose();
         for ( final int meshIndex : meshesByAscendingZIndex )
         {

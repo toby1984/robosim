@@ -232,7 +232,7 @@ public class Mesh
     /**
      *
      * @param matrix view matrix used to transform vertex coordinates
-     * @param normalMatrix inverted matrix used to transform normals
+     * @param normalMatrix  TRANSPOSED inverted view matrix used to transform normal vectors
      */
     public static Mesh transform(Mesh result, Matrix4f matrix, Matrix4f normalMatrix)
     {
