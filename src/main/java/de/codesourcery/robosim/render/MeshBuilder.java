@@ -12,7 +12,7 @@ public class MeshBuilder
     public static final int ATTR_VERTEX_NX    = 3;
     public static final int ATTR_VERTEX_NY    = 4;
     public static final int ATTR_VERTEX_NZ    = 5;
-    public static final int ATTR_VERTEX_COLOR = 6;
+    public static final int ATTR_VERTEX_COLOR_ARGB = 6;
 
     private final int attributesPerVertex = 7;
 
@@ -87,7 +87,7 @@ public class MeshBuilder
         vertices[vertexPtr + ATTR_VERTEX_NX   ] = nx;
         vertices[vertexPtr + ATTR_VERTEX_NY   ] = ny;
         vertices[vertexPtr + ATTR_VERTEX_NZ   ] = nz;
-        vertices[vertexPtr + ATTR_VERTEX_COLOR] = argb;
+        vertices[vertexPtr + ATTR_VERTEX_COLOR_ARGB] = argb;
         vertexPtr += attributesPerVertex;
         return idx;
     }

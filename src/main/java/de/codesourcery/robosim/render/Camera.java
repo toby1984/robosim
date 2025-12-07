@@ -27,7 +27,7 @@ public class Camera
     private float fov = (float) Math.toRadians( 70.0 );
     private float aspectRatio = 16f / 9f;
     private float nearPlane = 0.1f;
-    private float farPlane = 100.0f;
+    private float farPlane = 1000.0f;
 
     /**
      * Creates a new Camera instance with default settings.

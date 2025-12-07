@@ -11,9 +11,9 @@ public class Body
 
     // matrix that positions this object in world space
     private final Matrix4f modelMatrix = new Matrix4f();
-    private Mesh mesh;
+    private final Mesh mesh;
 
-    private BoundingBox initialBoundingBox;
+    private final BoundingBox initialBoundingBox;
     private BoundingBox transformedBoundingBox;
 
     public Body(Mesh mesh) {
@@ -38,7 +38,7 @@ public class Body
     public Mesh getMeshInWorldSpace()
     {
         final Mesh result = this.mesh.createCopy();
-        Mesh.transform( result, modelMatrix, modelMatrix.invertAffine( new Matrix4f() ) );
+        Mesh.transform( result, modelMatrix, modelMatrix.invert( new Matrix4f() ).transpose() );
         return result;
     }
 
@@ -51,6 +51,7 @@ public class Body
     private void updateMatrix() {
         Matrix4f rot = new  Matrix4f().rotateAffineXYZ( rotation.x,rotation.y,rotation.z );
         modelMatrix.translation( position ).mul( rot );
+        transformedBoundingBox = null;
     }
 
     public void setRotation(float x, float y, float z) {

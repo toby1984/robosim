@@ -131,7 +131,7 @@ public class Mesh
         result.z = sumZ/3;
     }
 
-    public void getNormalCoords(int vertexNo, Vector3f result) {
+    public void getNormal(int vertexNo, Vector3f result) {
         final int offset = vertexNo * attributesPerVertex;
         result.x = vertices[offset + MeshBuilder.ATTR_VERTEX_NX];
         result.y = vertices[offset + MeshBuilder.ATTR_VERTEX_NY];
@@ -153,7 +153,7 @@ public class Mesh
     public int getVertexColor(int indexNo)
     {
         final int offset = indices[indexNo] * attributesPerVertex;
-        return (int) ( vertices[ offset + MeshBuilder.ATTR_VERTEX_COLOR ] );
+        return (int) ( vertices[ offset + MeshBuilder.ATTR_VERTEX_COLOR_ARGB] );
     }
 
     public void getTriangleVertexCoords(int firstIndexNo, Vector3f p0, Vector3f p1, Vector3f p2)
