@@ -16,7 +16,7 @@ public class MeshBuilder
     public static final int ATTR_VERTEX_NZ    = 5;
     public static final int ATTR_VERTEX_COLOR_ARGB = 6;
 
-    private final int attributesPerVertex = 7;
+    private final int attributesPerVertex = 8;
 
     private int vertexPtr = 0;
     private float[] vertices = new float[3 * attributesPerVertex];
@@ -186,10 +186,10 @@ public class MeshBuilder
         float ny = tmp.y;
         float nz = tmp.z;
 
-        int pi0 = addVertex( p0.x, p0.y, p0.z, nx, ny, nz, argb );
-        int pi1 = addVertex( p1.x, p1.y, p1.z, nx, ny, nz, argb );
-        int pi2 = addVertex( p2.x, p2.y, p2.z, nx, ny, nz, argb );
-        int pi3 = addVertex( p3.x, p3.y, p3.z, nx, ny, nz, argb );
+        int pi0 = addVertex( p0.x, p0.y, p0.z, nx, ny, nz, argb);
+        int pi1 = addVertex( p1.x, p1.y, p1.z, nx, ny, nz, argb);
+        int pi2 = addVertex( p2.x, p2.y, p2.z, nx, ny, nz, argb);
+        int pi3 = addVertex( p3.x, p3.y, p3.z, nx, ny, nz, argb);
 
         addTriangle( pi0, pi1, pi2 );
         addTriangle( pi3, pi0, pi2 );
@@ -222,22 +222,22 @@ public class MeshBuilder
         final Vector3f p4 = new Vector3f(xMax, yMax, zMin);
 
         // front surface WORKS
-        builder.addQuad( p0, p1, p2, p3, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb );
+        builder.addQuad( p0, p1, p2, p3, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb);
 
         // right surface
-        builder.addQuad( p3, p2, p5, p4, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb );
+        builder.addQuad( p3, p2, p5, p4, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb);
 
         // left surface
-        builder.addQuad( p7, p6, p1, p0, USE_DEBUG_COLORS ? Color.BLUE.getRGB() : argb );
+        builder.addQuad( p7, p6, p1, p0, USE_DEBUG_COLORS ? Color.BLUE.getRGB() : argb);
 
         // back surface WORKS
-        builder.addQuad( p4, p5, p6, p7, USE_DEBUG_COLORS ? Color.CYAN.getRGB() : argb );
+        builder.addQuad( p4, p5, p6, p7, USE_DEBUG_COLORS ? Color.CYAN.getRGB() : argb);
 
         // top surface
-        builder.addQuad( p7, p0, p3, p4, USE_DEBUG_COLORS ? Color.LIGHT_GRAY.getRGB() : argb );
+        builder.addQuad( p7, p0, p3, p4, USE_DEBUG_COLORS ? Color.LIGHT_GRAY.getRGB() : argb);
 
         // bottom surface
-        builder.addQuad( p1, p6, p5, p2, USE_DEBUG_COLORS ? Color.MAGENTA.getRGB() : argb );
+        builder.addQuad( p1, p6, p5, p2, USE_DEBUG_COLORS ? Color.MAGENTA.getRGB() : argb);
 
         return builder.build();
     }
@@ -331,8 +331,8 @@ public class MeshBuilder
             rightVertices[ptr+2] = z1;
         }
 
-        builder.addTriangleStrip( xMin, 0, 0, leftVertices, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb );
-        builder.addTriangleStrip( xMax, 0, 0, rightVertices, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb );
+        builder.addTriangleStrip( xMin, 0, 0, leftVertices, USE_DEBUG_COLORS ? Color.GREEN.getRGB() : argb);
+        builder.addTriangleStrip( xMax, 0, 0, rightVertices, USE_DEBUG_COLORS ? Color.RED.getRGB() : argb);
 
         return builder.build();
     }

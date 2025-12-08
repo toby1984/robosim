@@ -37,7 +37,8 @@ public class RendererTest extends JFrame
 
     public static final boolean ROTATE_BODIES = true;
 
-    private final List<Body> bodies=new ArrayList<>();
+    private final List<Body> topLevelBodies = new ArrayList<>();
+    private final List<Body> bodiesToRender = new ArrayList<>();
     private final Camera cam = new Camera();
 
     private boolean needsRendering = true;
@@ -65,7 +66,8 @@ public class RendererTest extends JFrame
             setupImage();
             gfx.setColor( Color.BLACK );
             gfx.fillRect( 0, 0, getWidth(), getHeight() );
-            renderer.render( image, gfx, bodies );
+            topLevelBodies.forEach( Body::recalculateChildren );
+            renderer.render( image, gfx, bodiesToRender );
             g.drawImage( image, 0, 0, getWidth(), getHeight(), null );
             Toolkit.getDefaultToolkit().sync();
         }
@@ -202,7 +204,7 @@ public class RendererTest extends JFrame
                     angle.x += incrementsInDeg.x;
                     angle.y += incrementsInDeg.y;
                     angle.z += incrementsInDeg.z;
-                    bodies.forEach( b -> b.setRotation( angle ) );
+                    topLevelBodies.forEach( b -> b.setRotation( angle ) );
                     if ( (cnt++ % 100) == 0 )
                     {
                         float r = rnd.nextFloat();
@@ -241,12 +243,19 @@ public class RendererTest extends JFrame
 
         // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
         // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
-        // final Body cube1 = new Body( MeshBuilder.createCube( 50 ) );
-//        final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
-        final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 30, 32, Color.LIGHT_GRAY.getRGB() ) );
-        cube1.setPosition( 0,0,-50 );
+        // final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
+        // final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 30, 32, Color.LIGHT_GRAY.getRGB() ) );
         // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
         // cube2.setPosition( 50,0,-50 );
-        bodies.addAll( List.of(cube1) );
+
+        final Body parent = new Body( MeshBuilder.createCube( 50 , Color.RED.getRGB()) );
+        final Body child = new Body( MeshBuilder.createCube( 50 , Color.BLUE.getRGB() ) );
+        child.outlineColor = Color.WHITE;
+        child.setPosition( 60,60,60 );
+        parent.addChild( child );
+        parent.setPosition( 0,0,-50 );
+
+        topLevelBodies.add( parent );
+        bodiesToRender.addAll( List.of(parent,child) );
     }
 }

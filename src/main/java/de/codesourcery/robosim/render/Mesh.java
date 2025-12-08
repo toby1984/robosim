@@ -10,27 +10,10 @@ public class Mesh
         void visit(float x, float y, float z);
     }
 
-    private static final class BBVisitor implements VertexVisitor
-    {
-        public float minX=Float.MAX_VALUE, minY=Float.MAX_VALUE, minZ=Float.MAX_VALUE,
-            maxX=Float.MIN_VALUE, maxY=Float.MIN_VALUE, maxZ=Float.MIN_VALUE;
-
-        @Override
-        public void visit(float x, float y, float z)
-        {
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            minZ = Math.min(minZ, z);
-
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-            maxZ = Math.max(maxZ, z);
-        }
-    }
-
     public int attributesPerVertex = 3;
     public float[] vertices;
     public int[] indices;
+    public int bodyId;
 
     public Mesh(int attributesPerVertex, int[] indices, float[] vertices)
     {
@@ -39,21 +22,30 @@ public class Mesh
         this.indices = indices;
     }
 
-    public BoundingBox createBoundingBox() {
-        final BBVisitor v = new BBVisitor();
-        visitVertices( v );
-        return new BoundingBox( new Vector3f(v.minX, v.minY, v.minZ), new Vector3f(v.maxX, v.maxY, v.maxZ) );
+    public void setVertexAttribute(int attributeOffset, float value) {
+        for ( int idx = attributeOffset ; idx < vertices.length ; idx += attributesPerVertex ) {
+            vertices[idx] = value;
+        }
     }
 
-    public void visitVertices(VertexVisitor visitor)
+    /**
+     * Invokes a visitor with each vertex position after transforming
+     * it using a given matrix.
+     *
+     * @param visitor visitor to be invoked with each vertex position
+     * @param matrix matrix to apply to each vertex position
+     */
+    public void visitVerticesPositionTransformed(VertexVisitor visitor, Matrix4f matrix)
     {
-        for ( int i = 0; i < vertices.length; i+=attributesPerVertex )
+        final Vector3f tmp = new Vector3f();
+        for ( int i = 0, len = vertices.length ; i < len; i+=attributesPerVertex )
         {
-            visitor.visit(
+            matrix.transformPosition(
                 vertices[i+MeshBuilder.ATTR_VERTEX_X],
                 vertices[i+MeshBuilder.ATTR_VERTEX_Y],
-                vertices[i+MeshBuilder.ATTR_VERTEX_Z]
+                vertices[i+MeshBuilder.ATTR_VERTEX_Z],tmp
             );
+            visitor.visit(tmp.x, tmp.y, tmp.z);
         }
     }
 
@@ -192,7 +184,6 @@ public class Mesh
             }
             indexDstPtr += mesh.indices.length;
         }
-
         return new Mesh(attributesPerVertex, combinedIndices, combinedVertices);
     }
 
@@ -211,7 +202,8 @@ public class Mesh
         //noinspection IncompleteCopyConstructor
         this.vertices = Arrays.copyOfRange(other.vertices,0,other.vertices.length);
         //noinspection IncompleteCopyConstructor
-        this.indices = Arrays.copyOfRange(other.indices,0,other.indices.length);
+        this.indices = Arrays.copyOfRange( other.indices, 0, other.indices.length );
+        this.bodyId = other.bodyId;
     }
 
     public Mesh createCopy() {
@@ -219,58 +211,83 @@ public class Mesh
     }
 
     /**
+     * Transform only vertex positions of mesh.
      *
+     * @param toTransform mesh to transform
      * @param matrix view matrix used to transform vertex coordinates
-     * @param normalMatrix  TRANSPOSED inverted view matrix used to transform normal vectors
      */
-    public static Mesh transform(Mesh result, Matrix4f matrix, Matrix4f normalMatrix)
+    public static Mesh transformPosition(Mesh toTransform, Matrix4f matrix)
     {
         final Vector3f tmp = new Vector3f();
-        for ( int i = 0 ; i < result.vertices.length ; i+= result.attributesPerVertex ) {
+        for ( int i = 0 ; i < toTransform.vertices.length ; i+= toTransform.attributesPerVertex ) {
             // transform vertex coordinates
             matrix.transformPosition(
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_X],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
             );
 
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
-
-            // transform normal vector
-            normalMatrix.transformDirection(
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_NX],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_NY],
-                result.vertices[i + MeshBuilder.ATTR_VERTEX_NZ], tmp );
-
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_NX] = tmp.x;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_NY] = tmp.y;
-            result.vertices[i + MeshBuilder.ATTR_VERTEX_NZ] = tmp.z;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
         }
-        return result;
+        return toTransform;
     }
 
     /**
-     * Transforms a mesh into normalized device coordinates (NDC) in
-     * range [-1,1].
+     * Transform vertex positions and normals of mesh.
      *
-     * @param meshToTransform mesh
-     * @param projectionMatrix matrix
+     * @param toTransform mesh to transform
+     * @param matrix view matrix used to transform vertex coordinates
+     * @param normalMatrix  TRANSPOSED inverted view matrix used to transform normal vectors
      */
-    public static void transformPerspectiveNDC(Mesh meshToTransform, Matrix4f projectionMatrix)
+    public static Mesh transform(Mesh toTransform, Matrix4f matrix, Matrix4f normalMatrix)
     {
         final Vector3f tmp = new Vector3f();
-        for ( int i = 0 ; i < meshToTransform.vertices.length ; i+= meshToTransform.attributesPerVertex ) {
+        for ( int i = 0 ; i < toTransform.vertices.length ; i+= toTransform.attributesPerVertex ) {
+            // transform vertex coordinates
+            matrix.transformPosition(
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
+            );
+
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
+
+            // transform normal vector
+            normalMatrix.transformDirection(
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NX],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NY],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NZ], tmp );
+
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NX] = tmp.x;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NY] = tmp.y;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_NZ] = tmp.z;
+        }
+        return toTransform;
+    }
+
+    /**
+     * Transforms vertex coordinates into normalized device coordinates (NDC, range [-1,1]).
+     *
+     * @param toTransform mesh
+     * @param projectionMatrix matrix
+     */
+    public static void transformPerspectiveNDC(Mesh toTransform, Matrix4f projectionMatrix)
+    {
+        final Vector3f tmp = new Vector3f();
+        for ( int i = 0 ; i < toTransform.vertices.length ; i+= toTransform.attributesPerVertex ) {
             // transform vertex coordinates
             projectionMatrix.transformProject(
-                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X],
-                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
-                meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y],
+                toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z],tmp
             );
-            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
-            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
-            meshToTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_X] = tmp.x;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Y] = tmp.y;
+            toTransform.vertices[i + MeshBuilder.ATTR_VERTEX_Z] = tmp.z;
         }
     }
 }

@@ -14,6 +14,13 @@ public class BoundingBox
         max = new Vector3f();
     }
 
+    public BoundingBox merge(BoundingBox box)
+    {
+        min.min( box.min );
+        max.max( box.max );
+        return this;
+    }
+
     public BoundingBox(Vector3f min, Vector3f max)
     {
         Validate.notNull( min, "min must not be null" );

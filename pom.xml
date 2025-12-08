@@ -12,6 +12,7 @@
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <eclipse.collections>13.0.0</eclipse.collections>
   </properties>
   
   <dependencies>
@@ -25,6 +26,20 @@
       <artifactId>joml</artifactId>
       <version>1.10.8</version>
     </dependency>
+    
+    <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections-api</artifactId>
+      <version>${eclipse.collections}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections</artifactId>
+      <version>${eclipse.collections}</version>
+    </dependency>
+  
+  
   </dependencies>
 
 </project>

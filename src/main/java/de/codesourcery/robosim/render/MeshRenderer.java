@@ -4,8 +4,12 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.eclipse.collections.api.map.primitive.MutableIntObjectMap;
+import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import de.codesourcery.robosim.Utils;
@@ -17,17 +21,17 @@ public class MeshRenderer
     private static final boolean RENDER_FPS = true;
 
     // light position in VIEW space
-
     public final Camera camera;
 
     private final Vector3f lightPosition = new Vector3f(0,1000,0);
+
     private final float ambientLightFactor = 0.3f;
     private final boolean renderWireframe = false;
     private final boolean backFaceCulling = true;
     private final boolean depthSortBodies = true;
     private final boolean depthSortTriangles = true;
     private final boolean useFlatShading = true;
-    private final boolean useLightSource = true;
+    private final boolean useLightSource = false;
 
     private static final class Line {
         public final float x0,y0;
@@ -57,6 +61,8 @@ public class MeshRenderer
 
     private float sumFrameTimes;
     private long frameCount;
+
+    private final IntObjectHashMap<Body> outlinedBodies = new IntObjectHashMap<>();
 
     public void render(BufferedImage image, Graphics2D graphics, List<Body> bodies) {
 
@@ -89,11 +95,15 @@ public class MeshRenderer
         final Mesh[] meshes = new Mesh[bodies.size()];
         final int[] meshesByAscendingZIndex = new int[bodies.size()];
 
+        outlinedBodies.clear();
         for ( int i = 0, bodiesSize = bodies.size(); i < bodiesSize; i++ )
         {
             final Body body = bodies.get( i );
             // transform mesh from local space into world space
             meshes[i] = body.getMeshInWorldSpace();
+            if ( body.outlineColor != null ) {
+                outlinedBodies.put( body.bodyId, body );
+            }
             // transform BB into view space
             final BoundingBox bbInViewSpace = body.getAABB().createCopy().transform( camera.getViewMatrix() );
             largestZIndex[i] = bbInViewSpace.max.z;
@@ -116,6 +126,8 @@ public class MeshRenderer
         {
             // NOTE: Meshes have been transformed into world space by code above
             final Mesh mesh = meshes[meshIndex];
+
+            final Body outlinedBody = outlinedBodies.get( mesh.bodyId );
 
             // transform mesh from world space into view space,
             // taking care to multiply normals with the inverted view matrix
@@ -243,15 +255,10 @@ public class MeshRenderer
             final int cy = h / 2;
             for ( int i = 0; i < visibleTriangleCount; i++ )
             {
-                final int triangleIndex = visibleTriangleIndices[i];
+                final int triangleFirstVertexIdx = visibleTriangleIndices[i];
 
-                final int argb = mesh.getVertexColor( triangleIndex );
-                if ( argb != currentColorARGB )
-                {
-                    graphics.setColor( getColor( argb ) );
-                    currentColorARGB = argb;
-                }
-                mesh.getTriangleVertexCoords( triangleIndex, p0, p1, p2 );
+                // position
+                mesh.getTriangleVertexCoords( triangleFirstVertexIdx, p0, p1, p2 );
 
                 xPoints[0] = cx + (int) (p0.x * w / 2);
                 xPoints[1] = cx + (int) (p1.x * w / 2);
@@ -261,10 +268,28 @@ public class MeshRenderer
                 yPoints[1] = cy - (int) (p1.y * h / 2);
                 yPoints[2] = cy - (int) (p2.y * h / 2);
 
-                if ( renderWireframe ) {
-                    graphics.drawPolygon( xPoints, yPoints, 3 );
-                } else {
+                // render
+                int argb = mesh.getVertexColor( triangleFirstVertexIdx );
+                if ( ! renderWireframe ) {
+                    if ( argb != currentColorARGB )
+                    {
+                        graphics.setColor( getColor( argb ) );
+                        currentColorARGB = argb;
+                    }
                     graphics.fillPolygon( xPoints, yPoints, 3 );
+                }
+
+                if ( outlinedBody != null || renderWireframe )
+                {
+                    if ( outlinedBody != null ) {
+                        argb = outlinedBody.outlineColor.getRGB();
+                    }
+                    if ( argb != currentColorARGB )
+                    {
+                        graphics.setColor( getColor( argb ) );
+                        currentColorARGB = argb;
+                    }
+                    graphics.drawPolygon( xPoints, yPoints, 3 );
                 }
             }
 
