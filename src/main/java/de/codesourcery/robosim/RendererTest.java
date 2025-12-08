@@ -31,6 +31,7 @@ import de.codesourcery.robosim.kinematic.Link;
 import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
 import de.codesourcery.robosim.render.Camera;
+import de.codesourcery.robosim.render.MeshBuilder;
 import de.codesourcery.robosim.render.MeshRenderer;
 
 public class RendererTest extends JFrame
@@ -38,7 +39,10 @@ public class RendererTest extends JFrame
     private static final float CAM_TRANSLATION = 1f;
     private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
 
-    public static final boolean ROTATE_BODIES = false;
+    public static final int ROTATION_CHANGE_INTERVAL = 100000;
+    public static final boolean ROTATE_AROUND_X_AXIS = false;
+    public static final boolean ROTATE_AROUND_Y_AXIS = true;
+    public static final boolean ROTATE_AROUND_z_AXIS = false;
 
     private final List<Body> topLevelBodies = new ArrayList<>();
     private final List<Body> bodiesToRender = new ArrayList<>();
@@ -202,13 +206,22 @@ public class RendererTest extends JFrame
             {
                 RendererTest.this.handleInput();
 
-                if ( ROTATE_BODIES )
+                if ( ROTATE_AROUND_X_AXIS || ROTATE_AROUND_Y_AXIS || ROTATE_AROUND_z_AXIS)
                 {
-                    angle.x += incrementsInDeg.x;
-                    angle.y += incrementsInDeg.y;
-                    angle.z += incrementsInDeg.z;
+                    if ( ROTATE_AROUND_X_AXIS)
+                    {
+                        angle.x += incrementsInDeg.x;
+                    }
+                    if (  ROTATE_AROUND_Y_AXIS)
+                    {
+                        angle.y += incrementsInDeg.y;
+                    }
+                    if  ( ROTATE_AROUND_z_AXIS)
+                    {
+                        angle.z += incrementsInDeg.z;
+                    }
                     topLevelBodies.forEach( b -> b.setRotation( angle ) );
-                    if ( (cnt++ % 100) == 0 )
+                    if ( (cnt++ % ROTATION_CHANGE_INTERVAL) == 0 )
                     {
                         float r = rnd.nextFloat();
                         if ( r < 0.3f )
@@ -236,7 +249,7 @@ public class RendererTest extends JFrame
         SwingUtilities.invokeAndWait( () -> new RendererTest().run() );
     }
 
-    private void setupBodies() {
+    private void setupKinematicsChain() {
 
         final KinematicChain chain = new KinematicChain();
 
@@ -267,5 +280,25 @@ public class RendererTest extends JFrame
         System.out.println( "Top-level bodies: " + topLevelBodies.size() );
         bodiesToRender.addAll( chain.firstJoint.getAllBodies() );
         System.out.println("Bodies to render: "+bodiesToRender.size());
+    }
+
+    private void setupParentChild() {
+        final Body b1 = new Body( MeshBuilder.createBox( 100, 2, 100, Color.RED.getRGB() ) , "b1" );
+        final Body b2 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b2" );
+        final Body b3 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b3" );
+        b1.addChild( b2 );
+        b2.addChild( b3 );
+        b2.setRotation( 0,0, (float) (Math.PI / 2) );
+        b2.setPosition( 0,52,0 );
+        b3.setRotation( 0,0, (float) (Math.PI / 2) );
+        b3.setPosition( 50,0,0 );
+        topLevelBodies.addAll( List.of( b1 ) );
+        bodiesToRender.addAll( List.of( b1, b2, b3 ) );
+    }
+
+    private void setupBodies() {
+
+        setupKinematicsChain();
+        // setupParentChild();
     }
 }

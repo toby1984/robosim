@@ -11,7 +11,7 @@ import de.codesourcery.robosim.Utils;
 
 public class MeshRenderer
 {
-    private static final boolean RENDER_NORMALS = true;
+    private static final boolean RENDER_NORMALS = false;
     private static final boolean RENDER_DEBUG_INFO = false;
     private static final boolean RENDER_FPS = true;
 
@@ -33,7 +33,7 @@ public class MeshRenderer
     @SuppressWarnings("FieldCanBeLocal")
     private final boolean useFlatShading = true;
     @SuppressWarnings("FieldCanBeLocal")
-    private final boolean useLightSource = false;
+    private final boolean useLightSource = true;
 
     private static final class Line {
         public final float x0,y0;

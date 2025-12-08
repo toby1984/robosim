@@ -12,6 +12,7 @@ import org.joml.Vector3f;
 public class Body
 {
     private static int nextBodyId = 1;
+    private String debugName;
 
     private class AABBCalculator implements Mesh.VertexVisitor
     {
@@ -66,6 +67,11 @@ public class Body
     private final List<Body> children = new ArrayList<>();
 
     public Body(Mesh mesh) {
+        this(mesh,null);
+    }
+
+    public Body(Mesh mesh, String debugName) {
+        this.debugName = debugName;
         Validate.isTrue( bodyId > 0 );
         Validate.notNull( mesh, "mesh must not be null" );
         this.mesh = mesh;
@@ -200,20 +206,26 @@ public class Body
         // invalidate AABB
         axisAlignedBB = null;
         thisInstanceChanged = false;
+        recalculateChildren(true);
     }
 
     public void recalculateChildren() {
+        recalculateChildren( false );
+    }
 
-        if ( parentChanged ) {
+    public void recalculateChildren(boolean force) {
+
+        if ( parent != null && (parentChanged || force ) ) {
             // recalculate this instance
             parent.getAbsoluteMatrix().mul( getLocalMatrix(), this.absoluteMatrix );
+            // getLocalMatrix().mul( parent.getAbsoluteMatrix(), this.absoluteMatrix );
             this.absoluteMatrix.invertAffine(this.absoluteMatrixInvertedTransposed ).transpose();
             this.relPosition.add(parent.absolutePosition(), this.absolutePosition);
             this.relRotation.add(parent.absoluteRotation(), this.absoluteRotation);
-            this.axisAlignedBB = null;
         }
+        this.axisAlignedBB = null;
 
-        children.forEach( Body::recalculateChildren );
+        children.forEach( b -> b.recalculateChildren(force) );
 
         this.parentChanged = false;
     }
@@ -225,5 +237,11 @@ public class Body
 
     private Matrix4f getAbsoluteMatrixInvertedTransposed() {
         return hasParent() ? absoluteMatrixInvertedTransposed : getLocalMatrixInvertedTransposed();
+    }
+
+    @Override
+    public String toString()
+    {
+        return "Body "+debugName+" (#"+bodyId+")";
     }
 }

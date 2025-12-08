@@ -31,7 +31,7 @@ public class Camera
 
     private float fov = (float) Math.toRadians( 70.0 );
     private float aspectRatio = 16f / 9f;
-    private float nearPlane = 0.1f;
+    private float nearPlane = 0.01f;
     private float farPlane = 1000.0f;
 
     public Camera()

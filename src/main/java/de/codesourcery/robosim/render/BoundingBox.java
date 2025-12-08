@@ -14,6 +14,19 @@ public class BoundingBox
         max = new Vector3f();
     }
 
+    public float getCenterZ() {
+        return (min.z + max.z) / 2;
+    }
+
+    public void getCenter(Vector3f dst)
+    {
+        dst.set(
+            (min.x + max.x) / 2,
+            (min.y + max.y ) / 2,
+            (min.z + max.z ) /2
+        );
+    }
+
     public BoundingBox merge(BoundingBox box)
     {
         min.min( box.min );
@@ -39,13 +52,6 @@ public class BoundingBox
         max.y = Math.max( min2.y, max2.y );
         max.z = Math.max( min2.z, max2.z );
         return new BoundingBox(min,max);
-    }
-
-    public void getCenter(Vector3f result)
-    {
-        result.x = (min.x + max.x / 2);
-        result.y = (min.y + max.y / 2);
-        result.z = (min.z + max.z / 2);
     }
 
     public BoundingBox(BoundingBox other)
