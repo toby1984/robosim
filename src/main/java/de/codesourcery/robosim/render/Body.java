@@ -193,7 +193,9 @@ public class Body
     }
 
     private void updateLocalMatrices() {
-        relativeMatrix.translation( relPosition ).rotateAffineXYZ( relRotation.x, relRotation.y, relRotation.z );
+        final Matrix4f r = new Matrix4f().setRotationXYZ( relRotation.x, relRotation.y, relRotation.z );
+        final Matrix4f t = new Matrix4f().setTranslation( relPosition );
+        relativeMatrix.set(t).mul(r);
         relativeMatrix.invertAffine( relativeInvertedTransposed ).transpose();
         // invalidate AABB
         axisAlignedBB = null;

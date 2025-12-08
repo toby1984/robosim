@@ -11,7 +11,7 @@ import de.codesourcery.robosim.Utils;
 
 public class MeshRenderer
 {
-    private static final boolean RENDER_NORMALS = false;
+    private static final boolean RENDER_NORMALS = true;
     private static final boolean RENDER_DEBUG_INFO = false;
     private static final boolean RENDER_FPS = true;
 

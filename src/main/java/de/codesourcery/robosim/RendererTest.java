@@ -259,7 +259,8 @@ public class RendererTest extends JFrame
         new ModelBuilder().assignBodies( chain );
 
         j1.body().setRotation( 0,0, (float) (Math.PI / 2) );
-        l1.body().setPosition( 0,50,0);
+        l1.body().setPosition( 0,0,50);
+        l1.body().setRotation( 0,0, (float) (Math.PI / 2) );
         j2.body().setRotation( 0,0,0);
 
         topLevelBodies.add( chain.firstJoint.body() );
