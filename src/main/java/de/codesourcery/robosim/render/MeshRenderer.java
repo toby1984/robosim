@@ -53,10 +53,15 @@ public class MeshRenderer
         this.camera = camera;
     }
 
-    private final Map<Integer,Color> colorMap = new HashMap<>();
+    private final IntObjectHashMap<Color> colorMap = new IntObjectHashMap<>();
 
     private Color getColor(int argb) {
-        return colorMap.computeIfAbsent( argb, Color::new );
+        Color result = colorMap.get( argb );
+        if ( result == null ) {
+            result = new Color( argb );
+            colorMap.put( argb, result );
+        }
+        return result;
     }
 
     private float sumFrameTimes;
@@ -91,7 +96,6 @@ public class MeshRenderer
         // simply order meshes ascending to their transformed BBs largest Z-index.
 
         final float[] largestZIndex = new float[bodies.size()]; // hold's max. Z index of mesh BBs after the BB has been transformed into view spacee
-
         final Mesh[] meshes = new Mesh[bodies.size()];
         final int[] meshesByAscendingZIndex = new int[bodies.size()];
 
