@@ -235,6 +235,25 @@ public class Mesh
     }
 
     /**
+     * Transform only vertex positions of mesh.
+     * @param matrix
+     * @return
+     */
+    public Mesh transformPosition(Matrix4f matrix) {
+        return Mesh.transformPosition( this,matrix );
+    }
+
+    /**
+     * Transform vertex positions and normals of mesh.
+     * @param matrix
+     * @param normalMatrix
+     * @return
+     */
+    public Mesh transform(Matrix4f matrix, Matrix4f normalMatrix) {
+        return Mesh.transform( this, matrix, normalMatrix );
+    }
+
+    /**
      * Transform vertex positions and normals of mesh.
      *
      * @param toTransform mesh to transform

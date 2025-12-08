@@ -1,4 +1,4 @@
-package de.codesourcery.robosim;
+package de.codesourcery.robosim.motor;
 
 public class Pid {
     // --- PID Constants ---

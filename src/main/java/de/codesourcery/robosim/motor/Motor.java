@@ -1,4 +1,6 @@
-package de.codesourcery.robosim;
+package de.codesourcery.robosim.motor;
+
+import de.codesourcery.robosim.Utils;
 
 public class Motor
 {

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import org.apache.commons.lang3.Validate;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -58,7 +59,7 @@ public class Body
 
     private final Mesh mesh;
 
-    private boolean thisInstanceChanged;
+    private boolean thisInstanceChanged=true;
     private boolean parentChanged;
 
     private Body parent;
@@ -69,6 +70,15 @@ public class Body
         Validate.notNull( mesh, "mesh must not be null" );
         this.mesh = mesh;
         this.mesh.bodyId = this.bodyId;
+    }
+
+    /**
+     * Visit this body and all children.
+     * @param visitor visitor
+     */
+    public void visit(Consumer<Body> visitor) {
+        visitor.accept( this );
+        children.forEach( child -> child.visit( visitor ) );
     }
 
     public void addChild(Body child)

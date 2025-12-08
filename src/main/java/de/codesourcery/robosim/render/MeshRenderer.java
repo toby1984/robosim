@@ -3,12 +3,7 @@ package de.codesourcery.robosim.render;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import org.eclipse.collections.api.map.primitive.MutableIntObjectMap;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -24,13 +19,20 @@ public class MeshRenderer
     public final Camera camera;
 
     private final Vector3f lightPosition = new Vector3f(0,1000,0);
-
+    @SuppressWarnings("FieldCanBeLocal")
     private final float ambientLightFactor = 0.3f;
+
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean renderWireframe = false;
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean backFaceCulling = true;
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean depthSortBodies = true;
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean depthSortTriangles = true;
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean useFlatShading = true;
+    @SuppressWarnings("FieldCanBeLocal")
     private final boolean useLightSource = false;
 
     private static final class Line {
@@ -197,6 +199,7 @@ public class MeshRenderer
                 }
                 if ( isVisible )
                 {
+                    //noinspection ConstantValue
                     if ( backFaceCulling && useFlatShading )
                     {
                         mesh.setVertexColor( i, shadedColor );

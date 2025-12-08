@@ -25,9 +25,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import org.joml.Vector2i;
 import org.joml.Vector3f;
+import de.codesourcery.robosim.kinematic.Joint;
+import de.codesourcery.robosim.kinematic.KinematicChain;
+import de.codesourcery.robosim.kinematic.Link;
+import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
 import de.codesourcery.robosim.render.Camera;
-import de.codesourcery.robosim.render.MeshBuilder;
 import de.codesourcery.robosim.render.MeshRenderer;
 
 public class RendererTest extends JFrame
@@ -35,7 +38,7 @@ public class RendererTest extends JFrame
     private static final float CAM_TRANSLATION = 1f;
     private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
 
-    public static final boolean ROTATE_BODIES = true;
+    public static final boolean ROTATE_BODIES = false;
 
     private final List<Body> topLevelBodies = new ArrayList<>();
     private final List<Body> bodiesToRender = new ArrayList<>();
@@ -234,28 +237,34 @@ public class RendererTest extends JFrame
     }
 
     private void setupBodies() {
-        float x = 50;
-        float y = 50;
-        Vector3f p0 = new Vector3f( -x/2f,  y/2f, 0);
-        Vector3f p1 = new Vector3f(  x/2f,  y/2f, 0);
-        Vector3f p2 = new Vector3f(  x/2f, -y/2f, 0);
-        Vector3f p3 = new Vector3f( -x/2f, -y/2f, 0);
 
-        // bodies.add( new Body( new MeshBuilder().addQuad( p0, p1, p2, p3, Color.RED.getRGB() ).build() ) );
-        // bodies.add( new Body(new MeshBuilder().addTriangle( p0, p1, p2, Color.RED.getRGB() ).build()) );
-        // final Body cube1 = new Body( MeshBuilder.createCylinder( 30, 100, 32 ) );
-        // final Body cube1 = new Body( MeshBuilder.createCylinder( 100, 30, 32, Color.LIGHT_GRAY.getRGB() ) );
-        // final Body cube2 = new Body( MeshBuilder.createCube( 50 ) );
-        // cube2.setPosition( 50,0,-50 );
+        final KinematicChain chain = new KinematicChain();
 
-        final Body parent = new Body( MeshBuilder.createCube( 50 , Color.RED.getRGB()) );
-        final Body child = new Body( MeshBuilder.createCube( 50 , Color.BLUE.getRGB() ) );
-        child.outlineColor = Color.WHITE;
-        child.setPosition( 60,60,60 );
-        parent.addChild( child );
-        parent.setPosition( 0,0,-50 );
+        final Joint j1 = new Joint( "Base" );
+        j1.length = 10;
+        j1.diameter = 100;
+        chain.addPart( j1 );
 
-        topLevelBodies.add( parent );
-        bodiesToRender.addAll( List.of(parent,child) );
+        final Link l1 = new Link( "link #1" );
+        l1.length = 20;
+        l1.width = 25;
+        l1.height = 100;
+        chain.addPart( l1 );
+
+        final Joint j2 = new Joint( "Shoulder" );
+        j2.length = 100;
+        j2.diameter = 10;
+        chain.addPart( j2 );
+
+        new ModelBuilder().assignBodies( chain );
+
+        j1.body().setRotation( 0,0, (float) (Math.PI / 2) );
+        l1.body().setPosition( 0,50,0);
+        j2.body().setRotation( 0,0,0);
+
+        topLevelBodies.add( chain.firstJoint.body() );
+        System.out.println( "Top-level bodies: " + topLevelBodies.size() );
+        bodiesToRender.addAll( chain.firstJoint.getAllBodies() );
+        System.out.println("Bodies to render: "+bodiesToRender.size());
     }
 }

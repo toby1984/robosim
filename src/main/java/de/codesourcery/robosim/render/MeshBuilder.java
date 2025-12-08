@@ -198,16 +198,20 @@ public class MeshBuilder
     }
 
     public static Mesh createCube(float dimension, int argb) {
+        return createBox(dimension, dimension, dimension, argb);
+    }
+
+    public static Mesh createBox(float xExtend, float yExtend, float zExtend, int argb) {
 
         final MeshBuilder builder = new MeshBuilder();
 
-        float xMin = -dimension/2.0f;
-        float yMin = -dimension/2.0f;
-        float zMin = -dimension/2.0f;
+        float xMin = -xExtend/2.0f;
+        float yMin = -yExtend/2.0f;
+        float zMin = -zExtend/2.0f;
 
-        float xMax = dimension/2.0f;
-        float yMax = dimension/2.0f;
-        float zMax = dimension/2.0f;
+        float xMax = xExtend/2.0f;
+        float yMax = yExtend/2.0f;
+        float zMax = zExtend/2.0f;
 
         // front
         final Vector3f p0 = new Vector3f(xMin, yMax, zMax);
