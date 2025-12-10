@@ -3,19 +3,11 @@ package de.codesourcery.robosim.render;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Random;
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -26,7 +18,7 @@ import de.codesourcery.robosim.Utils;
 
 public class TriangleRenderer
 {
-    public void renderTriangle(Vector3f p0, Vector3f p1, Vector3f p2, int argb, RenderTarget target, ZBuffer depthBuffer)
+    public void renderFilledTriangle(Vector3f p0, Vector3f p1, Vector3f p2, int argb, RenderTarget target)
     {
         // sort points by ascending Y coordinate
         Vector3f tmp;
@@ -45,6 +37,7 @@ public class TriangleRenderer
             p1 = p2;
             p2 = tmp;
         }
+        final ZBuffer depthBuffer = target.zBuffer();
 
         // NOTE: Since points are sorted ascending by Y coordinate,
         //       Only p0.y == p1.y or p1.y == p2.y can happen (or none of them are on the same y coordinate)
@@ -74,9 +67,47 @@ public class TriangleRenderer
         }
     }
 
-    private void processTriangle(Line l1, Line l2, RenderTarget target, int argb, ZBuffer depthBuffer) {
+    private float maxValue(float[] data, int n) {
+        float m = -Float.MAX_VALUE;
+        for ( int i = 0 ; i < n; i++ )
+        {
+            final float v = data[i];
+            if ( m < v )
+            {
+                m = v;
+            }
+        }
+        return m;
+    }
 
-        Line left,right;
+    // this function gives the minimum
+    private float minValue(float[] data, int n) {
+        float m = Float.MAX_VALUE;
+        for ( int i = 0 ; i < n ; i++ )
+        {
+            final float v = data[i];
+            if ( m > v )
+            {
+                m = v;
+            }
+        }
+        return m;
+    }
+
+    private final LineClipping lineClipping = new LineClipping();
+
+    private void wwwprocessTriangle(Line l1, Line l2, RenderTarget target, int argb, ZBuffer depthBuffer) {
+
+        // FIXME: Broken clipping check here..
+        //        We need to draw a part of the triangle if AT LEAST one
+        //        of the lines is visible, not only if both are visible.
+        if ( ! target.clipLineAgainstViewport( l1.p0,l1.p1 ) ||
+             ! target.clipLineAgainstViewport( l2.p0, l2.p1 ) )
+        {
+            return;
+        }
+
+        Line left, right;
         if ( l1.p0.x <= l2.p0.x ) {
             left = l1;
             right = l2;
@@ -84,8 +115,6 @@ public class TriangleRenderer
             left = l2;
             right = l1;
         }
-        int minX;
-        int maxX;
 
 //        target.debugRenderLine( left.p0, left.p1, Color.GREEN.getRGB() );
 //        target.debugRenderLine( right.p0, right.p1, Color.BLUE.getRGB() );
@@ -107,6 +136,10 @@ public class TriangleRenderer
 
         final float minY = Math.min(l1.minY(), l2.minY());
         final float maxY = Math.max(l1.maxY(), l2.maxY() );
+
+        int minX;
+        int maxX;
+
         for ( float y = minY ; y <= maxY; y++ )
         {
             // calculate left and right X values
@@ -140,7 +173,7 @@ public class TriangleRenderer
 
     private static final class Line
     {
-        private final Vector3f p0, p1;
+        private final Vector3f p0=new Vector3f(), p1 = new Vector3f();
         private float b;
         private float m;
         private float length;
@@ -161,8 +194,10 @@ public class TriangleRenderer
 
         public Line(Vector3f p0, Vector3f p1)
         {
-            this.p0 = p0;
-            this.p1 = p1;
+            // point data MUST be copied here because
+            // line clipping will write to those points
+            this.p0.set(p0);
+            this.p1.set(p1);
 
             final float dx = p1.x - p0.x;
             final float dy = p1.y - p0.y;
@@ -224,6 +259,7 @@ public class TriangleRenderer
         final Vector3f p0 = new Vector3f(150,150,0);
         final Vector3f p1 = new Vector3f(300,150,0);
         final Vector3f p2 = new Vector3f(150+75,300,0);
+        final List<Vector3f> allPoints = List.of( p0, p1, p2 );
 
         angleSum = 1.9634907f;
         rotate(angleSum, p0, p1, p2  );
@@ -238,8 +274,13 @@ public class TriangleRenderer
                 @Override
                 public void keyPressed(KeyEvent e)
                 {
-                    if ( e.getKeyCode() == KeyEvent.VK_SPACE ) {
-                        advance = true;
+                    final int inc = 3;
+                    switch ( e.getKeyCode() ) {
+                        case KeyEvent.VK_SPACE -> advance = true;
+                        case KeyEvent.VK_A -> allPoints.forEach( p -> p.x -= inc );
+                        case KeyEvent.VK_D -> allPoints.forEach( p -> p.x += inc );
+                        case KeyEvent.VK_W -> allPoints.forEach( p -> p.y -= inc );
+                        case KeyEvent.VK_S -> allPoints.forEach( p -> p.y += inc );
                     }
                 }
 
@@ -260,18 +301,13 @@ public class TriangleRenderer
             frame.setVisible( true );
 
             final Random r = new Random(0xdeadbeefL);
-            final Timer timer = new Timer(16, new ActionListener()
-            {
-                @Override
-                public void actionPerformed(ActionEvent ev)
+            final Timer timer = new Timer(16, ev -> {
+                if ( advance )
                 {
-                    if ( advance )
-                    {
-                        angleSum += randomize( r, p0, p1, p2, panel.getWidth(), panel.getHeight() );
-                        // advance = false;
-                    }
-                    panel.repaint();
+                    angleSum += randomize( r, p0, p1, p2, panel.getWidth(), panel.getHeight() );
+                    // advance = false;
                 }
+                panel.repaint();
             } );
             timer.start();
         } );
@@ -282,11 +318,8 @@ public class TriangleRenderer
         private final Vector3f p0;
         private final Vector3f p1;
         private final Vector3f p2;
-        private BufferedImage image;
-        private Graphics2D g;
-        private ZBuffer zBuffer;
         private final TriangleRenderer renderer;
-        private final RenderTarget target;
+        private final BufferedImageRenderTarget target;
 
         public MyJPanel(Vector3f p0, Vector3f p1, Vector3f p2)
         {
@@ -294,78 +327,28 @@ public class TriangleRenderer
             this.p1 = p1;
             this.p2 = p2;
             renderer = new TriangleRenderer();
-            target = new RenderTarget()
-            {
-                @Override
-                public int width()
-                {
-                    return getWidth();
-                }
-
-                @Override
-                public int height()
-                {
-                    return getHeight();
-                }
-
-                @Override
-                public void debugRenderLine(Vector3f p0, Vector3f p1, int argc)
-                {
-                    final int r = (argc >> 16) & 0xff;
-                    final int gg = (argc >> 8) & 0xff;
-                    final int b = argc & 0xff;
-                    g.setColor( new Color( r, gg, b ) );
-                    g.drawLine( (int) p0.x, (int) p0.y, (int) p1.x, (int) p1.y );
-                }
-
-                @Override
-                public void debugWrite()
-                {
-                    try ( FileOutputStream stream = new FileOutputStream( "/home/tobi/tmp/debug.png" ) )
-                    {
-                        ImageIO.write( image, "png", stream );
-                    }
-                    catch( IOException e )
-                    {
-                         throw new RuntimeException( e );
-                    }
-                }
-
-                @Override
-                public void setPixel(int x, int y, int argb)
-                {
-                    image.setRGB( x, y, argb );
-                }
-            };
+            target = new BufferedImageRenderTarget( 640,480 );
         }
 
         @Override
         protected void paintComponent(Graphics gfx)
         {
             long start = System.nanoTime();
-            if ( zBuffer == null || zBuffer.width != getWidth() || zBuffer.height != getHeight() ) {
-                zBuffer = new ZBuffer(getWidth(),getHeight());
-                image =  new BufferedImage(getWidth(),getHeight(),BufferedImage.TYPE_INT_ARGB);
-                if ( g != null ) {
-                    g.dispose();
-                }
-                g = image.createGraphics();
-            }
-            zBuffer.clear();
-            g.setColor( Color.WHITE );
-            g.fillRect(0,0,getWidth(),getHeight());
+            target.beginRender( getWidth(), getHeight(), Color.WHITE.getRGB() );
+
             try
             {
-                renderer.renderTriangle( p0, p1, p2, Color.RED.getRGB(), target, zBuffer );
+                renderer.renderFilledTriangle( p0, p1, p2, Color.RED.getRGB(), target );
             } catch(Exception e) {
                 e.printStackTrace();
                 System.exit(0);
             }
-            gfx.drawImage(image,0,0,getWidth(),getHeight(),null);
+            gfx.drawImage(target.getImage(),0,0,getWidth(),getHeight(),null);
             long end = System.nanoTime();
             float elapsedMillis = (end-start)/1_000_000f;
             gfx.setColor( Color.RED );
             gfx.drawString("Millis: "+elapsedMillis,15,15);
         }
     }
+
 }

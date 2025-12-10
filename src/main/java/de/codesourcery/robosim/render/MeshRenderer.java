@@ -1,8 +1,6 @@
 package de.codesourcery.robosim.render;
 
 import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.util.List;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.joml.Matrix4f;
@@ -27,13 +25,9 @@ public class MeshRenderer
     @SuppressWarnings("FieldCanBeLocal")
     private final boolean backFaceCulling = true;
     @SuppressWarnings("FieldCanBeLocal")
-    private final boolean depthSortBodies = true;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final boolean depthSortTriangles = true;
-    @SuppressWarnings("FieldCanBeLocal")
     private final boolean useFlatShading = true;
     @SuppressWarnings("FieldCanBeLocal")
-    private final boolean useLightSource = true;
+    private final boolean useLightSource = false;
 
     private static final class Line {
         public final float x0,y0;
@@ -55,23 +49,21 @@ public class MeshRenderer
         this.camera = camera;
     }
 
-    private final IntObjectHashMap<Color> colorMap = new IntObjectHashMap<>();
-
-    private Color getColor(int argb) {
-        Color result = colorMap.get( argb );
-        if ( result == null ) {
-            result = new Color( argb );
-            colorMap.put( argb, result );
-        }
-        return result;
-    }
-
     private float sumFrameTimes;
     private long frameCount;
 
     private final IntObjectHashMap<Body> outlinedBodies = new IntObjectHashMap<>();
 
-    public void render(BufferedImage image, Graphics2D graphics, List<Body> bodies) {
+    private ZBuffer zbuffer;
+    private final TriangleRenderer triangleRenderer = new  TriangleRenderer();
+
+    public void render(RenderTarget target, List<Body> bodies) {
+
+        if ( zbuffer == null || zbuffer.width != target.width() || zbuffer.height != target.height() ) {
+            zbuffer = new ZBuffer( target.width(), target.height() );
+        } else {
+            zbuffer.clear();
+        }
 
         long renderStartTime;
         if ( RENDER_FPS )
@@ -114,13 +106,6 @@ public class MeshRenderer
             final BoundingBox bbInViewSpace = body.getAABB().createCopy().transform( camera.getViewMatrix() );
             largestZIndex[i] = bbInViewSpace.max.z;
             meshesByAscendingZIndex[i] = i;
-        }
-
-        // sort meshes ascending by their largest Z-index
-        if ( depthSortBodies )
-        {
-            IntegerQuicksort.sort( meshesByAscendingZIndex, meshesByAscendingZIndex.length,
-                (a, b) -> Float.compare( largestZIndex[a], largestZIndex[b] ) );
         }
 
         /*
@@ -211,16 +196,6 @@ public class MeshRenderer
                 }
             }
 
-            // sort triangles back to front
-            if ( depthSortTriangles )
-            {
-                IntegerQuicksort.sort( visibleTriangleIndices, visibleTriangleCount, (int triangleIdxA, int triangleIdxB) -> {
-                    final float z0 = mesh.getTriangleMinZ( triangleIdxA );
-                    final float z1 = mesh.getTriangleMinZ( triangleIdxB );
-                    return Float.compare( z0, z1 );
-                } );
-            }
-
             final Line[] normals;
             if ( RENDER_NORMALS )
             {
@@ -250,13 +225,8 @@ public class MeshRenderer
             // in range [-1,1]
             Mesh.transformPerspectiveNDC( mesh, camera.getProjectionMatrix() );
 
-            int currentColorARGB = 0;
-            graphics.setColor( Color.BLACK );
-            final int[] xPoints = new int[3];
-            final int[] yPoints = new int[3];
-
-            final int w = image.getWidth();
-            final int h = image.getHeight();
+            final int w = target.width();
+            final int h = target.height();
 
             final int cx = w / 2;
             final int cy = h / 2;
@@ -267,36 +237,26 @@ public class MeshRenderer
                 // position
                 mesh.getTriangleVertexCoords( triangleFirstVertexIdx, p0, p1, p2 );
 
-                xPoints[0] = cx + (int) (p0.x * w / 2);
-                xPoints[1] = cx + (int) (p1.x * w / 2);
-                xPoints[2] = cx + (int) (p2.x * w / 2);
+                System.out.println("Z values: "+p0.z+" / "+p1.z+" / "+p2.z);
+                p0.x = cx + (int) (p0.x * w / 2);
+                p0.y = cy - (int) (p0.y * h / 2);
 
-                yPoints[0] = cy - (int) (p0.y * h / 2);
-                yPoints[1] = cy - (int) (p1.y * h / 2);
-                yPoints[2] = cy - (int) (p2.y * h / 2);
+                p1.x = cx + (int) (p1.x * w / 2);
+                p1.y = cy - (int) (p1.y * h / 2);
 
-                // render
+                p2.x  = cx + (int) (p2.x * w / 2);
+                p2.y = cy - (int) (p2.y * h / 2);
+
                 int argb = mesh.getVertexColor( triangleFirstVertexIdx );
                 if ( ! renderWireframe ) {
-                    if ( argb != currentColorARGB )
-                    {
-                        graphics.setColor( getColor( argb ) );
-                        currentColorARGB = argb;
-                    }
-                    graphics.fillPolygon( xPoints, yPoints, 3 );
+                    triangleRenderer.renderFilledTriangle( p0,p1,p2,argb, target );
                 }
-
                 if ( outlinedBody != null || renderWireframe )
                 {
                     if ( outlinedBody != null ) {
                         argb = outlinedBody.outlineColor.getRGB();
                     }
-                    if ( argb != currentColorARGB )
-                    {
-                        graphics.setColor( getColor( argb ) );
-                        currentColorARGB = argb;
-                    }
-                    graphics.drawPolygon( xPoints, yPoints, 3 );
+                    target.drawTriangle( p0,p1,p2, argb );
                 }
             }
 
@@ -307,17 +267,9 @@ public class MeshRenderer
                 {
                     final int x0 = cx + (int) (line.x0 * w / 2);
                     final int y0 = cy - (int) (line.y0 * h / 2);
-
                     final int x1 = cx + (int) (line.x1 * w / 2);
                     final int y1 = cy - (int) (line.y1 * h / 2);
-
-                    final int argb = line.argb;
-                    if ( argb != currentColorARGB )
-                    {
-                        currentColorARGB = argb;
-                        graphics.setColor( getColor( argb ) );
-                    }
-                    graphics.drawLine( x0, y0, x1, y1 );
+                    target.drawLine( x0, y0, x1, y1, line.argb );
                 }
             }
         }
@@ -329,8 +281,7 @@ public class MeshRenderer
             sumFrameTimes += elapsedMillis;
             frameCount++;
             final float avgMillisPerFrame = sumFrameTimes / frameCount;
-            graphics.setColor( Color.WHITE );
-            graphics.drawString( "Avg. millis per frame: "+Math.round(avgMillisPerFrame*100f)/100f,15, y );
+            target.drawString("Avg. millis per frame: "+Math.round(avgMillisPerFrame*100f)/100f,15, y, Color.WHITE.getRGB() );
             y += 20;
             if ( frameCount == 3600 ) { // moving average
                 sumFrameTimes = 0;
@@ -339,10 +290,9 @@ public class MeshRenderer
         }
         if ( RENDER_DEBUG_INFO)
         {
-            graphics.setColor( Color.WHITE );
-            graphics.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, y);
+            target.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, y, Color.WHITE.getRGB() );
             y += 20;
-            graphics.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, y);
+            target.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, y, Color.WHITE.getRGB());
         }
     }
 

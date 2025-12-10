@@ -25,48 +25,25 @@ public class IntegerQuicksort {
         quickSort(arr, 0, sortLen - 1, c);
     }
 
-    // --- Private Recursive QuickSort Implementation ---
-
     private static void quickSort(int[] arr, int low, int high, IntComparator c) {
         if (low < high) {
-            // Find the pivot element such that elements smaller than the pivot
-            // are on the left and elements greater are on the right.
             int pivotIndex = partition(arr, low, high, c);
-
-            // Recursively sort the subarrays
             quickSort(arr, low, pivotIndex - 1, c);
             quickSort(arr, pivotIndex + 1, high, c);
         }
     }
 
-    /**
-     * Partition method for QuickSort. It selects a pivot, moves elements
-     * smaller than the pivot to the left, and elements greater to the right.
-     * * @return The final index of the pivot element.
-     */
     private static int partition(int[] arr, int low, int high, IntComparator c) {
-        // We use the element at the 'high' index as the pivot
         int pivot = arr[high];
-        int i = (low - 1); // Index of smaller element
+        int i = (low - 1);
 
         for (int j = low; j < high; j++) {
-            // The Comparator's compare method is used here.
-            // We temporarily cast the primitive ints to Integer (boxing)
-            // only for this single comparison, which is much less overhead
-            // than boxing the whole array.
-
-            // Check if current element arr[j] is "less than" the pivot based on the Comparator.
-            // A result < 0 means arr[j] is ordered before the pivot.
             if (c.compare(arr[j], pivot) < 0) {
                 i++;
-                // Swap arr[i] and arr[j]
                 swap(arr, i, j);
             }
         }
-
-        // Swap the pivot element with the element at i + 1
         swap(arr, i + 1, high);
-
         return i + 1;
     }
 

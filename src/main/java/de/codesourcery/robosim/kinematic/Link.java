@@ -1,6 +1,5 @@
 package de.codesourcery.robosim.kinematic;
 
-import org.joml.Vector3f;
 import de.codesourcery.robosim.render.Body;
 
 public final class Link implements Part

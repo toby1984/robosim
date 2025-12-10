@@ -3,7 +3,6 @@ package de.codesourcery.robosim;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -12,7 +11,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,6 +28,7 @@ import de.codesourcery.robosim.kinematic.KinematicChain;
 import de.codesourcery.robosim.kinematic.Link;
 import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
+import de.codesourcery.robosim.render.BufferedImageRenderTarget;
 import de.codesourcery.robosim.render.Camera;
 import de.codesourcery.robosim.render.MeshBuilder;
 import de.codesourcery.robosim.render.MeshRenderer;
@@ -37,7 +36,7 @@ import de.codesourcery.robosim.render.MeshRenderer;
 public class RendererTest extends JFrame
 {
     private static final float CAM_TRANSLATION = 1f;
-    private static final Vector3f CAM_POSITION = new  Vector3f(0,0,100);
+    private static final Vector3f CAM_POSITION = new  Vector3f(0,0,200);
 
     public static final int ROTATION_CHANGE_INTERVAL = 100000;
     public static final boolean ROTATE_AROUND_X_AXIS = false;
@@ -52,30 +51,16 @@ public class RendererTest extends JFrame
 
     private final JPanel panel = new JPanel() {
 
-        private BufferedImage image;
-        private Graphics2D gfx;
-
+        private final BufferedImageRenderTarget target = new BufferedImageRenderTarget( 640, 480 );
         private final MeshRenderer renderer = new MeshRenderer( cam );
-
-        void setupImage() {
-            if ( image == null || image.getWidth() != getWidth() || image.getHeight() != getHeight() ) {
-                if ( gfx != null ) {
-                    gfx.dispose();
-                }
-                image =  new BufferedImage( getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB );
-                gfx = image.createGraphics();
-            }
-        }
 
         @Override
         protected void paintComponent(Graphics g)
         {
-            setupImage();
-            gfx.setColor( Color.BLACK );
-            gfx.fillRect( 0, 0, getWidth(), getHeight() );
+            target.beginRender( getWidth(), getHeight(), Color.BLACK.getRGB() );
             topLevelBodies.forEach( Body::recalculateChildren );
-            renderer.render( image, gfx, bodiesToRender );
-            g.drawImage( image, 0, 0, getWidth(), getHeight(), null );
+            renderer.render( target, bodiesToRender );
+            g.drawImage( target.getImage(), 0, 0, getWidth(), getHeight(), null );
             Toolkit.getDefaultToolkit().sync();
         }
     };
