@@ -94,9 +94,7 @@ public class TriangleRenderer
         return m;
     }
 
-    private final LineClipping lineClipping = new LineClipping();
-
-    private void wwwprocessTriangle(Line l1, Line l2, RenderTarget target, int argb, ZBuffer depthBuffer) {
+    private void processTriangle(Line l1, Line l2, RenderTarget target, int argb, ZBuffer depthBuffer) {
 
         // FIXME: Broken clipping check here..
         //        We need to draw a part of the triangle if AT LEAST one
@@ -134,8 +132,11 @@ public class TriangleRenderer
         float lzStep = (leftZEnd-leftZStart)/left.length;
         float rzStep = (rightZEnd-rightZStart)/right.length;
 
-        final float minY = Math.min(l1.minY(), l2.minY());
-        final float maxY = Math.max(l1.maxY(), l2.maxY() );
+        float minY = Math.min(l1.minY(), l2.minY());
+        float maxY = Math.max(l1.maxY(), l2.maxY() );
+
+        minY = Math.max( 0, minY );
+        maxY = Math.max( minY, Math.min( target.height()-1, maxY));
 
         int minX;
         int maxX;
@@ -150,6 +151,8 @@ public class TriangleRenderer
                 minX = maxX;
                 maxX = tmp;
             }
+            minX = Math.max( 0, minX );
+            maxX = Math.max( minX, Math.min( target.width()-1, maxX));
 
             float zXStep = (rz - lz) / (maxX - minX);
             float currentZ = lz;

@@ -13,6 +13,7 @@
     <maven.compiler.target>25</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <eclipse.collections>13.0.0</eclipse.collections>
+    <libgdx.version>1.12.1</libgdx.version>
   </properties>
   
   <dependencies>
@@ -25,6 +26,26 @@
       <groupId>org.joml</groupId>
       <artifactId>joml</artifactId>
       <version>1.10.8</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.badlogicgames.gdx</groupId>
+      <artifactId>gdx</artifactId>
+      <version>${libgdx.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.badlogicgames.gdx</groupId>
+      <artifactId>gdx-backend-lwjgl3</artifactId>
+      <version>${libgdx.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.badlogicgames.gdx</groupId>
+      <artifactId>gdx-platform</artifactId>
+      <version>${libgdx.version}</version>
+      <classifier>natives-desktop</classifier>
+      <scope>runtime</scope>
     </dependency>
     
     <dependency>
