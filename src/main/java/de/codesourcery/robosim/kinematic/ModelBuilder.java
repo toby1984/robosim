@@ -1,8 +1,8 @@
 package de.codesourcery.robosim.kinematic;
 
-import java.awt.Color;
+import com.badlogic.gdx.graphics.Color;
+import de.codesourcery.robosim.RendererTest;
 import de.codesourcery.robosim.render.Body;
-import de.codesourcery.robosim.render.MeshBuilder;
 
 public class ModelBuilder
 {
@@ -12,10 +12,9 @@ public class ModelBuilder
         while ( part != null )
         {
             final Body newBody = switch( part ) {
-                case Joint joint -> new Body( MeshBuilder.createCylinder( joint.length, joint.diameter, 32,
-                    Color.BLUE.getRGB() ) );
+                case Joint joint -> RendererTest.createCylinder( "", joint.length, joint.diameter, Color.BLUE );
                 case Link link ->
-                    new Body( MeshBuilder.createBox( link.width, link.height, link.length, Color.RED.getRGB() ) );
+                    RendererTest.createBox( "", link.width, link.height, link.length, Color.RED ) ;
             };
             part.setBody( newBody );
             if ( part.previous() != null )

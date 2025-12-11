@@ -6,28 +6,27 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.Validate;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.graphics.Mesh;
+import de.codesourcery.robosim.Utils;
 
 public class Body
 {
     private static int nextBodyId = 1;
     private String debugName;
 
-    private final Vector3f relPosition = new Vector3f();
-    private final Vector3f absolutePosition = new Vector3f();
+    private final Vector3 relPosition = new Vector3();
+    private final Vector3 absolutePosition = new Vector3();
 
-    private final Vector3f relRotation = new Vector3f();
-    private final Vector3f absoluteRotation = new Vector3f();
+    private final Vector3 relRotation = new Vector3();
+    private final Vector3 absoluteRotation = new Vector3();
 
     // transformation matrices for this body only
-    private final Matrix4f relativeMatrix = new Matrix4f();
-    private final Matrix4f relativeInvertedTransposed = new Matrix4f();
+    private final Matrix4 relativeMatrix = new Matrix4();
 
     // transformation matrices including this body's local matrices and this body's parent's matrices (if any)
-    private final Matrix4f absoluteMatrix = new Matrix4f();
-    private final Matrix4f absoluteMatrixInvertedTransposed = new Matrix4f();
+    private final Matrix4 absoluteMatrix = new Matrix4();
 
     public final int bodyId = nextBodyId++;
 
@@ -105,21 +104,21 @@ public class Body
         return ! hasParent();
     }
 
-    public Vector3f relativeRotation()
+    public Vector3 relativeRotation()
     {
         return relRotation;
     }
 
-    public Vector3f absoluteRotation()
+    public Vector3 absoluteRotation()
     {
         return hasParent() ? absoluteRotation : relRotation;
     }
 
-    public Vector3f relativePosition() {
+    public Vector3 relativePosition() {
         return relPosition;
     }
 
-    public Vector3f absolutePosition()
+    public Vector3 absolutePosition()
     {
         return hasParent() ? absolutePosition : relPosition;
     }
@@ -131,7 +130,7 @@ public class Body
         children.forEach( Body::setParentChanged );
     }
 
-    public void setRotation(Vector3f v) {
+    public void setRotation(Vector3 v) {
         setRotation( v.x,v.y,v.z );
     }
 
@@ -141,7 +140,7 @@ public class Body
         children.forEach( Body::setParentChanged );
     }
 
-    private Matrix4f getLocalMatrix() {
+    private Matrix4 getLocalMatrix() {
         if ( thisInstanceChanged ) {
             updateLocalMatrices();
         }
@@ -149,13 +148,16 @@ public class Body
     }
 
     private void updateLocalMatrices() {
-        final Matrix4f r = new Matrix4f().setRotationXYZ( relRotation.x, relRotation.y, relRotation.z );
-        final Matrix4f t = new Matrix4f().setTranslation( relPosition );
+        final Matrix4 r = Utils.setToRotation(new Matrix4(), relRotation.x, relRotation.y, relRotation.z );
+        final Matrix4 t = new Matrix4().setTranslation( relPosition );
         relativeMatrix.set(t).mul(r);
-        relativeMatrix.invertAffine( relativeInvertedTransposed ).transpose();
         // invalidate AABB
         thisInstanceChanged = false;
         recalculateChildren(true);
+    }
+
+    public void incAngleZ(float increment) {
+        setRotation( relRotation.x,  relRotation.y, relRotation.z + increment );
     }
 
     public void recalculateChildren() {
@@ -166,11 +168,14 @@ public class Body
 
         if ( parent != null && (parentChanged || force ) ) {
             // recalculate this instance
-            parent.getAbsoluteMatrix().mul( getLocalMatrix(), this.absoluteMatrix );
-            // getLocalMatrix().mul( parent.getAbsoluteMatrix(), this.absoluteMatrix );
-            this.absoluteMatrix.invertAffine(this.absoluteMatrixInvertedTransposed ).transpose();
-            this.relPosition.add(parent.absolutePosition(), this.absolutePosition);
-            this.relRotation.add(parent.absoluteRotation(), this.absoluteRotation);
+            this.absoluteMatrix.set( parent.getAbsoluteMatrix() );
+            this.absoluteMatrix.mul(getLocalMatrix());
+
+            this.absolutePosition.set( this.relPosition );
+            this.absolutePosition.add( parent.absolutePosition() );
+
+            this.absoluteRotation.set( parent.absoluteRotation() );
+            this.absoluteRotation.add( this.relRotation );
         }
 
         children.forEach( b -> b.recalculateChildren(force) );
@@ -178,7 +183,7 @@ public class Body
         this.parentChanged = false;
     }
 
-    public Matrix4f getAbsoluteMatrix()
+    public Matrix4 getAbsoluteMatrix()
     {
         return hasParent() ? absoluteMatrix : getLocalMatrix();
     }

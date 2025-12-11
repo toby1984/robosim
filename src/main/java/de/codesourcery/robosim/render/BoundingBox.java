@@ -1,24 +1,23 @@
 package de.codesourcery.robosim.render;
 
 import org.apache.commons.lang3.Validate;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import com.badlogic.gdx.math.Vector3;
 
 public class BoundingBox
 {
-    public final Vector3f min;
-    public final Vector3f max;
+    public final Vector3 min;
+    public final Vector3 max;
 
     public BoundingBox() {
-        min = new Vector3f();
-        max = new Vector3f();
+        min = new Vector3();
+        max = new Vector3();
     }
 
     public float getCenterZ() {
         return (min.z + max.z) / 2;
     }
 
-    public void getCenter(Vector3f dst)
+    public void getCenter(Vector3 dst)
     {
         dst.set(
             (min.x + max.x) / 2,
@@ -29,12 +28,18 @@ public class BoundingBox
 
     public BoundingBox merge(BoundingBox box)
     {
-        min.min( box.min );
-        max.max( box.max );
+        min.set( Math.min( this.min.x, box.min.x ),
+            Math.min( this.min.y, box.min.y ),
+            Math.min( this.min.z, box.min.z )
+        );
+        max.set( Math.max( this.max.x, box.max.x ),
+            Math.max( this.max.y, box.max.y ),
+            Math.max( this.max.z, box.max.z )
+        );
         return this;
     }
 
-    public BoundingBox(Vector3f min, Vector3f max)
+    public BoundingBox(Vector3 min, Vector3 max)
     {
         Validate.notNull( min, "min must not be null" );
         Validate.notNull( max, "max must not be null" );
@@ -42,9 +47,9 @@ public class BoundingBox
         this.max = max;
     }
 
-    public static BoundingBox create(Vector3f min2, Vector3f max2) {
-        final Vector3f  min = new Vector3f(min2);
-        final Vector3f  max = new Vector3f(max2);
+    public static BoundingBox create(Vector3 min2, Vector3 max2) {
+        final Vector3  min = new Vector3(min2);
+        final Vector3  max = new Vector3(max2);
         min.x = Math.min( min2.x, max2.x );
         min.y = Math.min( min2.y, max2.y );
         min.z = Math.min( min2.z, max2.z );
@@ -57,19 +62,12 @@ public class BoundingBox
     public BoundingBox(BoundingBox other)
     {
         //noinspection IncompleteCopyConstructor
-        this.min = new Vector3f(other.min);
+        this.min = new Vector3(other.min);
         //noinspection IncompleteCopyConstructor
-        this.max = new Vector3f(other.max);
+        this.max = new Vector3(other.max);
     }
 
     public BoundingBox createCopy() {
         return new BoundingBox(this);
-    }
-
-    public BoundingBox transform(Matrix4f transform)
-    {
-        transform.transformPosition( min );
-        transform.transformPosition( max );
-        return this;
     }
 }

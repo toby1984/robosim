@@ -1,25 +1,18 @@
 package de.codesourcery.robosim;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Mesh;
-import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
-import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
-import com.badlogic.gdx.graphics.g3d.utils.shapebuilders.BoxShapeBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import de.codesourcery.robosim.kinematic.Joint;
 import de.codesourcery.robosim.kinematic.KinematicChain;
 import de.codesourcery.robosim.kinematic.Link;
 import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
-import de.codesourcery.robosim.render.MeshBuilder;
 import de.codesourcery.robosim.render.MeshRenderer;
 
 public class RendererTest
@@ -30,8 +23,12 @@ public class RendererTest
     static void main()
     {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        config.setForegroundFPS(60);
         config.setTitle("RoboSim");
+
+        config.useVsync(true);
+        config.setForegroundFPS(60);
+        config.setIdleFPS( 60 );
+
         config.setWindowedMode(800, 600);
         new Lwjgl3Application(new MeshRenderer( () -> {
             setupBodies();
@@ -61,9 +58,10 @@ public class RendererTest
 
         new ModelBuilder().assignBodies( chain );
 
-        j1.body().setRotation( 0,0, (float) (Math.PI / 2) );
+        j1.body().setRotation( 0,0, 45 );
         l1.body().setPosition( 0,0,50);
-        l1.body().setRotation( 0,0, (float) (Math.PI / 2) );
+
+        l1.body().setRotation( 0,0, 45 );
         j2.body().setRotation( 0,0,0);
 
         topLevelBodies.add( chain.firstJoint.body() );
@@ -73,21 +71,41 @@ public class RendererTest
     }
 
     private static void setupParentChild() {
-        final Body b1 = new Body( MeshBuilder.createBox( 100, 2, 100, Color.RED.getRGB() ) , "b1" );
-        final Body b2 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b2" );
-        final Body b3 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b3" );
+        final Body b1 = createBox( "b1", 100, 1, 100, com.badlogic.gdx.graphics.Color.RED );
+        // final Body b2 = createBox( "b1", 10, 10, 10, com.badlogic.gdx.graphics.Color.BLUE );
+        // final Body b2 = createCylinder( "b2",100, 10, com.badlogic.gdx.graphics.Color.BLUE );
+        final Body b2 = createCylinder( "b3", 100, 10, com.badlogic.gdx.graphics.Color.BLUE );
+//        final Body b3 = createCylinder( "b3", 100, 10, com.badlogic.gdx.graphics.Color.BLUE );
         b1.addChild( b2 );
-        b2.addChild( b3 );
-        b2.setRotation( 0,0, (float) (Math.PI / 2) );
-        b2.setPosition( 0,52,0 );
-        b3.setRotation( 0,0, (float) (Math.PI / 2) );
-        b3.setPosition( 50,0,0 );
+        // b2.addChild( b3 );
+        b2.setRotation( 0,0, 0 );
+        b2.setPosition( 0,50,0 );
+//        b3.setRotation( 0,0, 90 );
+//        b3.setPosition( 50,0,0 );
         topLevelBodies.addAll( List.of( b1 ) );
-        bodiesToRender.addAll( java.util.List.of( b1, b2, b3 ) );
+        // bodiesToRender.addAll( java.util.List.of( b1, b2, b3 ) );
+        bodiesToRender.addAll( java.util.List.of( b1, b2) );
     }
 
-    private static void setupBodies() {
+    public static Body createCylinder(String name, float length, float diameter, com.badlogic.gdx.graphics.Color color)
+    {
+        final VertexAttributes attributes = new VertexAttributes(
+            new VertexAttribute( VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE )
+        );
 
+        com.badlogic.gdx.graphics.g3d.utils.MeshBuilder builder =
+            new com.badlogic.gdx.graphics.g3d.utils.MeshBuilder();
+        builder.begin(attributes, GL20.GL_TRIANGLES);
+        builder.setColor(color );
+        builder.cylinder(diameter, length, diameter, 16 );
+
+        return new Body( builder.end() , name );
+    }
+
+    public static Body createBox(String name, float width, float height, float depth, com.badlogic.gdx.graphics.Color color)
+    {
         final VertexAttributes attributes = new VertexAttributes(
             new VertexAttribute( VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE ),
             new VertexAttribute( VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE ),
@@ -98,17 +116,20 @@ public class RendererTest
             new com.badlogic.gdx.graphics.g3d.utils.MeshBuilder();
         builder.begin(attributes, GL20.GL_TRIANGLES);
 
-        // **BoxShapeBuilder Usage**
-        // build() method takes the dimensions (width, height, depth) for a centered box.
-        // We also pass the color attribute here to make the whole box red.
-        builder.setColor( com.badlogic.gdx.graphics.Color.RED );
-        builder.box(50f, 50f, 50f);
+        builder.setColor( color );
+        builder.box(width, height, depth);
 
-        final Body b1 = new Body( builder.end() , "b1" );
-        topLevelBodies.add( b1 );
-        bodiesToRender.add( b1 );
+        return new Body( builder.end() , name );
+    }
 
-        // setupKinematicsChain();
-        // setupParentChild();
+    private static void setupBodies() {
+
+//        final Body b1 = createCylinder("b1", 100,50,com.badlogic.gdx.graphics.Color.RED );
+////        final Body b1 = createBox("b1", 50,50,50, com.badlogic.gdx.graphics.Color.RED );
+//        topLevelBodies.add( b1 );
+//        bodiesToRender.add( b1 );
+
+//        setupKinematicsChain();
+         setupParentChild();
     }
 }

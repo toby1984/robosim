@@ -1,6 +1,6 @@
 package de.codesourcery.robosim.kinematic;
 
-import org.joml.Vector3f;
+import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.robosim.ITickListener;
 import de.codesourcery.robosim.motor.Motor;
 import de.codesourcery.robosim.render.Body;
@@ -16,7 +16,7 @@ public final class Joint implements Part, ITickListener
     public Motor motor = new Motor("base");
 
     // axis around which this join rotates
-    public final Vector3f rotationAxis = new Vector3f(0,1,0);
+    public final Vector3 rotationAxis = new Vector3(0,1,0);
 
     public float length, diameter;
 

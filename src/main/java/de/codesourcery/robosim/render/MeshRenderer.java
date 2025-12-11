@@ -9,30 +9,58 @@ import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector3;
 
 public class MeshRenderer extends ApplicationAdapter
 {
-    // --- Vertex Data ---
-    // Positions: (x, y)
-    // The vertices array format is: X, Y, R, G, B, A
-    // (This format is defined by the VertexAttributes below)
-    private FirstPersonCameraController cameraController;
-    private ShaderProgram shaderProgram;
+    // Light properties
+    private static final Vector3 lightPosition = new Vector3(0f, 100f, 100f);
+    private static final Vector3 lightColor = new Vector3(1f, 1f, 1f);
+    private static final Vector3 ambientColor = new Vector3(0.1f, 0.1f, 0.1f);
 
+    private FirstPersonCameraController cameraController;
+    private ShaderProgram shader;
+
+    // <-- NEW: Normal vector input
+    // <-- NEW: World matrix (for normal transform)
+    // <-- NEW: Light position
+    // <-- No 'flat' keyword, allow interpolation (Gouraud)
+    // Transform position and normal into world space
+    // Calculate light vector (from vertex to light)
+    // Calculate the diffuse component (Lambertian model)
+    // Combine ambient and diffuse lighting
+    // Set vertex color (Base Red color * calculated light)
+    // Final position projection
     private static final String VERTEX_SHADER =
-        "attribute vec4 a_position; " +
-        "attribute vec4 a_color; " +
-        "uniform mat4 u_projTrans; " +
-        "varying vec4 v_color; " +
-        "void main() { " +
-        "   v_color = a_color;" +
-        "   gl_Position = u_projTrans * a_position; " +
-        "}";
+        """
+            attribute vec4 a_position;
+            attribute vec4 a_color;
+            attribute vec3 a_normal;
+            
+            uniform mat4 u_projTrans;
+            uniform mat4 u_meshTrans;
+            uniform mat4 u_worldTrans;
+            uniform vec3 u_lightPosition;
+            uniform vec3 u_lightColor;
+            uniform vec3 u_ambientColor;
+            varying vec4 v_color;
+            void main() {
+              vec3 positionWorld = (u_worldTrans * u_meshTrans * a_position).xyz;
+              vec3 normalWorld = normalize((u_worldTrans * u_meshTrans * vec4(a_normal, 0.0)).xyz);
+              vec3 lightVector = normalize(u_lightPosition - positionWorld);
+              float diffuseIntensity = max(dot(normalWorld, lightVector), 0.0);
+              vec3 finalLight = u_ambientColor + u_lightColor * diffuseIntensity;
+              v_color = a_color * vec4(finalLight, 1.0);
+              gl_Position = u_projTrans * u_meshTrans * a_position;
+            }""";
+
     private static final String FRAGMENT_SHADER =
-        "varying vec4 v_color; " +
-        "void main() { " +
-        "   gl_FragColor = v_color; " +
-        "}";
+        """
+            varying vec4 v_color;
+            void main() {
+              gl_FragColor = v_color;
+            }""";
 
     private PerspectiveCamera camera;
     private List<Body> bodies;
@@ -47,10 +75,10 @@ public class MeshRenderer extends ApplicationAdapter
     public void create()
     {
         this.bodies = bodySupplier.get();
-        shaderProgram = new ShaderProgram( VERTEX_SHADER, FRAGMENT_SHADER );
-        if ( !shaderProgram.isCompiled() )
+        shader = new ShaderProgram( VERTEX_SHADER, FRAGMENT_SHADER );
+        if ( !shader.isCompiled() )
         {
-            Gdx.app.error( "Shader Error", shaderProgram.getLog() );
+            Gdx.app.error( "Shader Error", shader.getLog() );
             throw new IllegalStateException( "Shader failed to compile." );
         }
         camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -61,6 +89,9 @@ public class MeshRenderer extends ApplicationAdapter
         camera.update();
 
         cameraController = new FirstPersonCameraController(camera);
+        cameraController.setVelocity( 50 );
+        cameraController.setDegreesPerPixel( 1 );
+
         // This line tells LibGDX to send all input events (keys, mouse, etc.) to our controller
         Gdx.input.setInputProcessor(cameraController);
     }
@@ -75,24 +106,25 @@ public class MeshRenderer extends ApplicationAdapter
     @Override
     public void render()
     {
-// **1. Update the Camera Controller**
-        // This is where the WASD key presses are read and the camera's position is changed.
+//        bodies.getFirst().incAngleZ( 1 );
+
         cameraController.update(Gdx.graphics.getDeltaTime());
 
-        // 2. Standard Render setup
         Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
 
-//        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-//        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
-
-        // 3. Render the Mesh
-        shaderProgram.bind();
-        // The camera's combined matrix MUST be updated after the controller moves the camera.
-        shaderProgram.setUniformMatrix("u_projTrans", camera.combined);
+        shader.bind();
+        shader.setUniformMatrix("u_projTrans", camera.combined);
+        shader.setUniformMatrix("u_worldTrans", camera.view);
+        shader.setUniformf("u_lightPosition", lightPosition);
+        shader.setUniformf("u_lightColor", lightColor);
+        shader.setUniformf("u_ambientColor", ambientColor);
         for ( final Body body : bodies )
         {
-            final Mesh mesh = body.getMesh();
-            mesh.render( shaderProgram, GL20.GL_TRIANGLES);
+            shader.setUniformMatrix("u_meshTrans", body.getAbsoluteMatrix());
+            body.getMesh().render( shader, GL20.GL_TRIANGLES);
         }
     }
 
@@ -100,7 +132,7 @@ public class MeshRenderer extends ApplicationAdapter
     public void dispose()
     {
         bodies.forEach( body -> body.getMesh().dispose() );
-        shaderProgram.dispose();
+        shader.dispose();
     }
 
 }
