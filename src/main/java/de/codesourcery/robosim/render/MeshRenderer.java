@@ -1,306 +1,106 @@
 package de.codesourcery.robosim.render;
 
-import java.awt.Color;
 import java.util.List;
-import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import de.codesourcery.robosim.Utils;
+import java.util.function.Supplier;
+import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Mesh;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 
-public class MeshRenderer
+public class MeshRenderer extends ApplicationAdapter
 {
-    private static final boolean RENDER_NORMALS = false;
-    private static final boolean RENDER_DEBUG_INFO = false;
-    private static final boolean RENDER_FPS = true;
+    // --- Vertex Data ---
+    // Positions: (x, y)
+    // The vertices array format is: X, Y, R, G, B, A
+    // (This format is defined by the VertexAttributes below)
+    private FirstPersonCameraController cameraController;
+    private ShaderProgram shaderProgram;
 
-    // light position in VIEW space
-    public final Camera camera;
+    private static final String VERTEX_SHADER =
+        "attribute vec4 a_position; " +
+        "attribute vec4 a_color; " +
+        "uniform mat4 u_projTrans; " +
+        "varying vec4 v_color; " +
+        "void main() { " +
+        "   v_color = a_color;" +
+        "   gl_Position = u_projTrans * a_position; " +
+        "}";
+    private static final String FRAGMENT_SHADER =
+        "varying vec4 v_color; " +
+        "void main() { " +
+        "   gl_FragColor = v_color; " +
+        "}";
 
-    private final Vector3f lightPosition = new Vector3f(0,1000,0);
-    @SuppressWarnings("FieldCanBeLocal")
-    private final float ambientLightFactor = 0.3f;
+    private PerspectiveCamera camera;
+    private List<Body> bodies;
+    private final Supplier<List<Body>> bodySupplier;
 
-    @SuppressWarnings("FieldCanBeLocal")
-    private final boolean renderWireframe = false;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final boolean backFaceCulling = true;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final boolean useFlatShading = true;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final boolean useLightSource = false;
-
-    private static final class Line {
-        public final float x0,y0;
-        public final float x1,y1;
-        public final int argb;
-
-        public Line(Vector3f p0, Vector3f p1, int argb)
-        {
-            this.x0 = p0.x;
-            this.y0 = p0.y;
-            this.x1 = p1.x;
-            this.y1 = p1.y;
-            this.argb = argb;
-        }
-    }
-
-    public MeshRenderer(Camera camera)
+    public MeshRenderer(Supplier<List<Body>> bodySupplier)
     {
-        this.camera = camera;
+        this.bodySupplier = bodySupplier;
     }
 
-    private float sumFrameTimes;
-    private long frameCount;
-
-    private final IntObjectHashMap<Body> outlinedBodies = new IntObjectHashMap<>();
-
-    private ZBuffer zbuffer;
-    private final TriangleRenderer triangleRenderer = new  TriangleRenderer();
-
-    public void render(RenderTarget target, List<Body> bodies) {
-
-        if ( zbuffer == null || zbuffer.width != target.width() || zbuffer.height != target.height() ) {
-            zbuffer = new ZBuffer( target.width(), target.height() );
-        } else {
-            zbuffer.clear();
-        }
-
-        long renderStartTime;
-        if ( RENDER_FPS )
+    @Override
+    public void create()
+    {
+        this.bodies = bodySupplier.get();
+        shaderProgram = new ShaderProgram( VERTEX_SHADER, FRAGMENT_SHADER );
+        if ( !shaderProgram.isCompiled() )
         {
-            renderStartTime = System.nanoTime();
+            Gdx.app.error( "Shader Error", shaderProgram.getLog() );
+            throw new IllegalStateException( "Shader failed to compile." );
         }
+        camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.position.set(100f, 100f, 100f);
+        camera.lookAt(0f, 0f, 0f);
+        camera.near = 0.1f; // Closer near plane for better viewing of nearby objects
+        camera.far = 500f;
+        camera.update();
 
-        // some temporary variables
-        final Vector3f p0 = new Vector3f();
-        final Vector3f p1 = new Vector3f();
-        final Vector3f p2 = new Vector3f();
-        final Vector3f tmp = new Vector3f();
-        final Vector3f transformedLightPos = new Vector3f();
+        cameraController = new FirstPersonCameraController(camera);
+        // This line tells LibGDX to send all input events (keys, mouse, etc.) to our controller
+        Gdx.input.setInputProcessor(cameraController);
+    }
 
-        if ( useLightSource ) {
-            camera.getViewMatrix().transformPosition( lightPosition, transformedLightPos );
-        }
+    @Override
+    public void resize(int width, int height) {
+        camera.viewportWidth = width;
+        camera.viewportHeight = height;
+        camera.update();
+    }
 
-        // transform meshes into world space and sort meshes
-        // back-to-front according to their distance from the camera.
-        //
-        // We'll transform the meshes bounding box (that is always in world space)
-        // into view space and then, since in view space the camera will be at (0,0,0),
-        // simply order meshes ascending to their transformed BBs largest Z-index.
+    @Override
+    public void render()
+    {
+// **1. Update the Camera Controller**
+        // This is where the WASD key presses are read and the camera's position is changed.
+        cameraController.update(Gdx.graphics.getDeltaTime());
 
-        final float[] largestZIndex = new float[bodies.size()]; // hold's max. Z index of mesh BBs after the BB has been transformed into view spacee
-        final Mesh[] meshes = new Mesh[bodies.size()];
-        final int[] meshesByAscendingZIndex = new int[bodies.size()];
+        // 2. Standard Render setup
+        Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
 
-        outlinedBodies.clear();
-        for ( int i = 0, bodiesSize = bodies.size(); i < bodiesSize; i++ )
+//        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+//        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+
+        // 3. Render the Mesh
+        shaderProgram.bind();
+        // The camera's combined matrix MUST be updated after the controller moves the camera.
+        shaderProgram.setUniformMatrix("u_projTrans", camera.combined);
+        for ( final Body body : bodies )
         {
-            final Body body = bodies.get( i );
-            // transform mesh from local space into world space
-            meshes[i] = body.getMeshInWorldSpace();
-            if ( body.outlineColor != null ) {
-                outlinedBodies.put( body.bodyId, body );
-            }
-            // transform BB into view space
-            final BoundingBox bbInViewSpace = body.getAABB().createCopy().transform( camera.getViewMatrix() );
-            largestZIndex[i] = bbInViewSpace.max.z;
-            meshesByAscendingZIndex[i] = i;
-        }
-
-        /*
-         * IMPORTANT: Normals need to be transformed using the TRANSPOSED inverted view matrix.
-         */
-        final Matrix4f normalMatrix = camera.getInvertedTransposedViewMatrix();
-
-        for ( final int meshIndex : meshesByAscendingZIndex )
-        {
-            // NOTE: Meshes have been transformed into world space by code above
-            final Mesh mesh = meshes[meshIndex];
-
-            final Body outlinedBody = outlinedBodies.get( mesh.bodyId );
-
-            // transform mesh from world space into view space,
-            // taking care to multiply normals with the inverted view matrix
-            Mesh.transform( mesh, camera.getViewMatrix(), normalMatrix );
-
-            // compile array with visible triangles
-            if ( mesh.indices.length % 3 != 0 )
-            {
-                throw new IllegalArgumentException( "Mesh indices array's length must be a multiple of 3." );
-            }
-            int visibleTriangleCount = 0;
-
-            // this array holds for each visible triangle the
-            // offset of that triangle's first vertex inside the meshes "indices[]" array
-            final int[] visibleTriangleIndices = new int[mesh.indices.length / 3];
-
-            // loop over vertices of each triangle, check visibility, calculate shaded color
-            for ( int i = 0; i < mesh.indices.length; i+= 3 )
-            {
-                boolean isVisible = false;
-                int shadedColor = 0xffffffff;
-                if ( backFaceCulling )
-                {
-                    for ( int j = 2; j >= 0; j-- )
-                    {
-                        final int triangleVertexIndex = i + j;
-                        mesh.getNormal( mesh.indices[triangleVertexIndex], p0 );
-                        mesh.getVertexCoords( mesh.indices[triangleVertexIndex], p1 );
-
-                        // NOTE: Since vertices have already been translated into VIEW space (=>camera is now at (0,0,0)
-                        //       we can simply use the vertex coordinate itself as surface->camera vector
-                        final float dotProduct = p0.dot( p1 );
-                        final boolean visible = dotProduct <= 0;
-                        if ( visible )
-                        {
-                            isVisible = true;
-                            if ( useFlatShading )
-                            {
-                                if ( useLightSource )
-                                {
-                                    p1.sub( transformedLightPos, tmp );
-                                    final float dot2 = p0.dot( tmp );
-                                    final int currentColor = mesh.getVertexColor( triangleVertexIndex );
-                                    if ( dot2 <= 0 )
-                                    {
-                                        final float angle = p0.angleCos( tmp );
-                                        shadedColor = shadeRGB( currentColor, Math.max( ambientLightFactor, -angle ) );
-                                    }
-                                    else
-                                    {
-                                        shadedColor = shadeRGB( currentColor, ambientLightFactor );
-                                    }
-                                } else {
-                                    float cos = dotProduct / (p0.length() * p1.length());
-                                    shadedColor = shadeRGB( mesh.getVertexColor( triangleVertexIndex ), Math.max(ambientLightFactor, -cos) );
-                                }
-                            }
-                            break;
-                        }
-                    }
-                } else {
-                    isVisible = true;
-                }
-                if ( isVisible )
-                {
-                    //noinspection ConstantValue
-                    if ( backFaceCulling && useFlatShading )
-                    {
-                        mesh.setVertexColor( i, shadedColor );
-                        mesh.setVertexColor( i+1, shadedColor );
-                        mesh.setVertexColor( i+2, shadedColor );
-                    }
-                    // visible, add triangle indices
-                    visibleTriangleIndices[visibleTriangleCount++] = i;
-                }
-            }
-
-            final Line[] normals;
-            if ( RENDER_NORMALS )
-            {
-                normals = new Line[visibleTriangleCount * 3];
-                for ( int i = 0, ptr = 0; i < visibleTriangleCount; i++ )
-                {
-                    final int triangleIndex = visibleTriangleIndices[i];
-                    for ( int j = 0; j < 3; j++ )
-                    {
-                        final int argb = mesh.getVertexColor( triangleIndex + j );
-                        mesh.getVertexCoords( mesh.indices[triangleIndex + j], p0 ); // p0 == start point
-                        mesh.getNormal( mesh.indices[triangleIndex + j], p1 );
-                        p1.mul( 10 ).add( p0 ); // p1 == end point
-                        camera.getProjectionMatrix().transformProject( p0 );
-                        camera.getProjectionMatrix().transformProject( p1 );
-                        normals[ptr++] = new Line( p0, p1, argb );
-                    }
-                }
-            }
-            else
-            {
-                normals = null;
-            }
-            // now render all visible triangles back-to-front
-
-            // transform mesh into normalized device coordinates (NDC)
-            // in range [-1,1]
-            Mesh.transformPerspectiveNDC( mesh, camera.getProjectionMatrix() );
-
-            final int w = target.width();
-            final int h = target.height();
-
-            final int cx = w / 2;
-            final int cy = h / 2;
-            for ( int i = 0; i < visibleTriangleCount; i++ )
-            {
-                final int triangleFirstVertexIdx = visibleTriangleIndices[i];
-
-                // position
-                mesh.getTriangleVertexCoords( triangleFirstVertexIdx, p0, p1, p2 );
-
-                System.out.println("Z values: "+p0.z+" / "+p1.z+" / "+p2.z);
-                p0.x = cx + (int) (p0.x * w / 2);
-                p0.y = cy - (int) (p0.y * h / 2);
-
-                p1.x = cx + (int) (p1.x * w / 2);
-                p1.y = cy - (int) (p1.y * h / 2);
-
-                p2.x  = cx + (int) (p2.x * w / 2);
-                p2.y = cy - (int) (p2.y * h / 2);
-
-                int argb = mesh.getVertexColor( triangleFirstVertexIdx );
-                if ( ! renderWireframe ) {
-                    triangleRenderer.renderFilledTriangle( p0,p1,p2,argb, target );
-                }
-                if ( outlinedBody != null || renderWireframe )
-                {
-                    if ( outlinedBody != null ) {
-                        argb = outlinedBody.outlineColor.getRGB();
-                    }
-                    target.drawTriangle( p0,p1,p2, argb );
-                }
-            }
-
-            // render normals last so they do not get occluded
-            if ( RENDER_NORMALS )
-            {
-                for ( final Line line : normals )
-                {
-                    final int x0 = cx + (int) (line.x0 * w / 2);
-                    final int y0 = cy - (int) (line.y0 * h / 2);
-                    final int x1 = cx + (int) (line.x1 * w / 2);
-                    final int y1 = cy - (int) (line.y1 * h / 2);
-                    target.drawLine( x0, y0, x1, y1, line.argb );
-                }
-            }
-        }
-
-        int y = 15;
-        if ( RENDER_FPS ) {
-            final long renderEnd = System.nanoTime();
-            final float elapsedMillis = (renderEnd - renderStartTime) / 1_000_000f;
-            sumFrameTimes += elapsedMillis;
-            frameCount++;
-            final float avgMillisPerFrame = sumFrameTimes / frameCount;
-            target.drawString("Avg. millis per frame: "+Math.round(avgMillisPerFrame*100f)/100f,15, y, Color.WHITE.getRGB() );
-            y += 20;
-            if ( frameCount == 3600 ) { // moving average
-                sumFrameTimes = 0;
-                frameCount = 0;
-            }
-        }
-        if ( RENDER_DEBUG_INFO)
-        {
-            target.drawString( "camera @ " +Utils.prettyPrint( camera.getPosition() ) , 15, y, Color.WHITE.getRGB() );
-            y += 20;
-            target.drawString( "Look @ " + Utils.prettyPrint(camera.getTarget()) , 15, y, Color.WHITE.getRGB());
+            final Mesh mesh = body.getMesh();
+            mesh.render( shaderProgram, GL20.GL_TRIANGLES);
         }
     }
 
-    private static int shadeRGB(int argb, float factor) {
-        final int a = argb & 0xff000000;
-        final int r = ((int) (factor * ( (argb & 0xff0000) >> 16 )) & 0xff);
-        final int g = ((int) (factor * ( (argb & 0x00ff00) >>  8 )) & 0xff);
-        final int b = ((int) (factor * ( (argb & 0x0000ff)       )) & 0xff);
-        return a | r << 16 | g << 8 | b;
+    @Override
+    public void dispose()
+    {
+        bodies.forEach( body -> body.getMesh().dispose() );
+        shaderProgram.dispose();
     }
+
 }

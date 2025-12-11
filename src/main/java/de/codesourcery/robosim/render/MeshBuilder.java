@@ -3,6 +3,10 @@ package de.codesourcery.robosim.render;
 import java.awt.Color;
 import java.util.Arrays;
 import org.joml.Vector3f;
+import com.badlogic.gdx.graphics.Mesh;
+import com.badlogic.gdx.graphics.VertexAttribute;
+import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 
 public class MeshBuilder
 {
@@ -22,7 +26,7 @@ public class MeshBuilder
     private float[] vertices = new float[3 * attributesPerVertex];
 
     private int indexPtr = 0;
-    private int[] indices = new int[3];
+    private short[] indices = new short[3];
 
     private final Vector3f tmp = new Vector3f();
 
@@ -142,9 +146,9 @@ public class MeshBuilder
             final int newLength = 3 + (indices.length * 2);
             indices = Arrays.copyOf( indices, newLength );
         }
-        indices[indexPtr++] = idx0;
-        indices[indexPtr++] = idx1;
-        indices[indexPtr++] = idx2;
+        indices[indexPtr++] = (short) idx0;
+        indices[indexPtr++] = (short) idx1;
+        indices[indexPtr++] = (short) idx2;
     }
 
     private void addIndex(int idx)
@@ -154,7 +158,7 @@ public class MeshBuilder
             final int newLength = 1 + (indices.length * 2);
             indices = Arrays.copyOf( indices, newLength );
         }
-        indices[indexPtr++] = idx;
+        indices[indexPtr++] = (short) idx;
     }
 
     /**
@@ -248,9 +252,15 @@ public class MeshBuilder
 
     public Mesh build()
     {
-        return new Mesh(this.attributesPerVertex,
-            Arrays.copyOfRange( this.indices, 0, this.indexPtr),
-            Arrays.copyOfRange( this.vertices, 0, this.vertexPtr ) );
+        // true=static mesh
+        final Mesh mesh = new Mesh( true, this.vertexPtr, this.indexPtr,
+            new VertexAttribute( VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE )
+        );
+        mesh.setVertices( vertices, 0, vertexPtr );
+        mesh.setIndices( indices, 0, indexPtr );
+        return mesh;
     }
 
     private void addTriangleStrip(float cx, float cy, float cz, float[] points, int argb) {

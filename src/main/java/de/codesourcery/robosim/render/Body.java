@@ -8,35 +8,12 @@ import java.util.function.Consumer;
 import org.apache.commons.lang3.Validate;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import com.badlogic.gdx.graphics.Mesh;
 
 public class Body
 {
     private static int nextBodyId = 1;
     private String debugName;
-
-    private class AABBCalculator implements Mesh.VertexVisitor
-    {
-        private float xMin=Float.MAX_VALUE, yMin=Float.MAX_VALUE, zMin=Float.MAX_VALUE;
-        private float xMax=Float.MIN_VALUE, yMax=Float.MIN_VALUE, zMax=Float.MIN_VALUE;
-        private final Vector3f p = new Vector3f();
-
-        @Override
-        public void visit(float x, float y, float z)
-        {
-            relativeMatrix.transformPosition( x, y, z, p);
-            xMin = Math.min( xMin, p.x );
-            yMin = Math.min( yMin, p.y );
-            zMin = Math.min( zMin, p.z );
-            xMax = Math.max( xMax, p.x );
-            yMax = Math.max( yMax, p.y );
-            zMax = Math.max( zMax, p.z );
-        }
-
-        public BoundingBox getBoundingBox()
-        {
-            return new BoundingBox( new Vector3f(xMin, yMin, zMin), new Vector3f(xMax, yMax, zMax) );
-        }
-    }
 
     private final Vector3f relPosition = new Vector3f();
     private final Vector3f absolutePosition = new Vector3f();
@@ -53,8 +30,6 @@ public class Body
     private final Matrix4f absoluteMatrixInvertedTransposed = new Matrix4f();
 
     public final int bodyId = nextBodyId++;
-
-    private BoundingBox axisAlignedBB;
 
     public Color outlineColor;
 
@@ -75,7 +50,11 @@ public class Body
         Validate.isTrue( bodyId > 0 );
         Validate.notNull( mesh, "mesh must not be null" );
         this.mesh = mesh;
-        this.mesh.bodyId = this.bodyId;
+    }
+
+    public Mesh getMesh()
+    {
+        return mesh;
     }
 
     /**
@@ -106,26 +85,11 @@ public class Body
     public void setParent(Body parent)
     {
         this.parentChanged = parent != null && this.parent != parent;
-        this.axisAlignedBB = null;
         this.parent = parent;
     }
 
     public void setParentChanged() {
         this.parentChanged = true;
-    }
-
-    /**
-     *
-     * @return this object's AABB in LOCAL space
-     */
-    public BoundingBox getAABB()
-    {
-        if ( axisAlignedBB == null ) {
-            final AABBCalculator visitor = new AABBCalculator();
-            mesh.visitVerticesPositionTransformed( visitor, getAbsoluteMatrix() );
-            axisAlignedBB = visitor.getBoundingBox();
-        }
-        return axisAlignedBB;
     }
 
     public Body getParent()
@@ -139,13 +103,6 @@ public class Body
 
     public boolean hasNoParent() {
         return ! hasParent();
-    }
-
-    public Mesh getMeshInWorldSpace()
-    {
-        final Mesh result = this.mesh.createCopy();
-        Mesh.transform( result, getAbsoluteMatrix(), getAbsoluteMatrixInvertedTransposed() );
-        return result;
     }
 
     public Vector3f relativeRotation()
@@ -191,20 +148,12 @@ public class Body
         return this.relativeMatrix;
     }
 
-    private Matrix4f getLocalMatrixInvertedTransposed() {
-        if ( thisInstanceChanged ) {
-            updateLocalMatrices();
-        }
-        return this.relativeInvertedTransposed;
-    }
-
     private void updateLocalMatrices() {
         final Matrix4f r = new Matrix4f().setRotationXYZ( relRotation.x, relRotation.y, relRotation.z );
         final Matrix4f t = new Matrix4f().setTranslation( relPosition );
         relativeMatrix.set(t).mul(r);
         relativeMatrix.invertAffine( relativeInvertedTransposed ).transpose();
         // invalidate AABB
-        axisAlignedBB = null;
         thisInstanceChanged = false;
         recalculateChildren(true);
     }
@@ -223,7 +172,6 @@ public class Body
             this.relPosition.add(parent.absolutePosition(), this.absolutePosition);
             this.relRotation.add(parent.absoluteRotation(), this.absoluteRotation);
         }
-        this.axisAlignedBB = null;
 
         children.forEach( b -> b.recalculateChildren(force) );
 
@@ -233,10 +181,6 @@ public class Body
     public Matrix4f getAbsoluteMatrix()
     {
         return hasParent() ? absoluteMatrix : getLocalMatrix();
-    }
-
-    private Matrix4f getAbsoluteMatrixInvertedTransposed() {
-        return hasParent() ? absoluteMatrixInvertedTransposed : getLocalMatrixInvertedTransposed();
     }
 
     @Override

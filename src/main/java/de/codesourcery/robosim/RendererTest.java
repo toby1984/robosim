@@ -1,240 +1,45 @@
 package de.codesourcery.robosim;
 
 import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.HeadlessException;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import org.joml.Vector2i;
-import org.joml.Vector3f;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Mesh;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.VertexAttribute;
+import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
+import com.badlogic.gdx.graphics.g3d.utils.shapebuilders.BoxShapeBuilder;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import de.codesourcery.robosim.kinematic.Joint;
 import de.codesourcery.robosim.kinematic.KinematicChain;
 import de.codesourcery.robosim.kinematic.Link;
 import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
-import de.codesourcery.robosim.render.BufferedImageRenderTarget;
-import de.codesourcery.robosim.render.Camera;
 import de.codesourcery.robosim.render.MeshBuilder;
 import de.codesourcery.robosim.render.MeshRenderer;
 
-public class RendererTest extends JFrame
+public class RendererTest
 {
-    private static final float CAM_TRANSLATION = 1f;
-    private static final Vector3f CAM_POSITION = new  Vector3f(0,0,200);
+    private static final List<Body> topLevelBodies = new ArrayList<>();
+    private static final List<Body> bodiesToRender = new ArrayList<>();
 
-    public static final int ROTATION_CHANGE_INTERVAL = 100000;
-    public static final boolean ROTATE_AROUND_X_AXIS = false;
-    public static final boolean ROTATE_AROUND_Y_AXIS = true;
-    public static final boolean ROTATE_AROUND_z_AXIS = false;
-
-    private final List<Body> topLevelBodies = new ArrayList<>();
-    private final List<Body> bodiesToRender = new ArrayList<>();
-    private final Camera cam = new Camera();
-
-    private boolean needsRendering = true;
-
-    private final JPanel panel = new JPanel() {
-
-        private final BufferedImageRenderTarget target = new BufferedImageRenderTarget( 640, 480 );
-        private final MeshRenderer renderer = new MeshRenderer( cam );
-
-        @Override
-        protected void paintComponent(Graphics g)
-        {
-            target.beginRender( getWidth(), getHeight(), Color.BLACK.getRGB() );
-            topLevelBodies.forEach( Body::recalculateChildren );
-            renderer.render( target, bodiesToRender );
-            g.drawImage( target.getImage(), 0, 0, getWidth(), getHeight(), null );
-            Toolkit.getDefaultToolkit().sync();
-        }
-    };
-
-    private boolean camAngleChanged;
-    private float newPitch, newYaw;
-    private final Set<Integer> pressedKeys = new HashSet<>();
-
-    public RendererTest() throws HeadlessException
+    static void main()
     {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-        setupBodies();
-
-        cam.setPosition( CAM_POSITION.x, CAM_POSITION.y, CAM_POSITION.z );
-        cam.updateViewMatrix();
-
-        panel.setFocusable(  true );
-        panel.requestFocus();
-        panel.addKeyListener( new KeyAdapter()
-        {
-            @Override
-            public void keyPressed(KeyEvent e)
-            {
-                pressedKeys.add( e.getKeyCode() );
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e)
-            {
-                pressedKeys.remove( e.getKeyCode() );
-            }
-        } );
-        final MouseAdapter mouseAdapter = new MouseAdapter() {
-
-            private boolean isDragging;
-            private final Vector2i dragStart = new Vector2i();
-            private float initialPitch, initialYaw;
-
-            private final int mouseButton = MouseEvent.BUTTON1;
-
-            @Override
-            public void mouseDragged(MouseEvent e)
-            {
-                if ( isDragging ) {
-                    final int dx = e.getX() - dragStart.x;
-                    final int dy = e.getY() - dragStart.y;
-
-                    final float PITCH_DEGREES = 0.005f;
-                    final float YAW_DEGREES = 0.005f;
-                    newPitch = initialPitch + dy * PITCH_DEGREES;
-                    newYaw = initialYaw + -dx * YAW_DEGREES;
-                    camAngleChanged = true;
-                }
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e)
-            {
-                if ( ! isDragging && e.getButton() == mouseButton ) {
-                    isDragging = true;
-                    initialPitch = cam.pitch;
-                    initialYaw = cam.yaw;
-                    dragStart.set(e.getX(), e.getY());
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e)
-            {
-                if ( isDragging && e.getButton() == mouseButton )
-                {
-                    isDragging = false;
-                }
-            }
-        };
-        panel.addMouseListener( mouseAdapter );
-        panel.addMouseMotionListener( mouseAdapter );
-        getContentPane().add( panel );
-        setPreferredSize( new Dimension( 640, 480 ) );
-        setLocationRelativeTo(null);
-        pack();
-        setVisible( true );
+        Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+        config.setForegroundFPS(60);
+        config.setTitle("RoboSim");
+        config.setWindowedMode(800, 600);
+        new Lwjgl3Application(new MeshRenderer( () -> {
+            setupBodies();
+            return bodiesToRender;
+        }), config);
     }
 
-    private void handleInput() {
-        if ( pressedKeys.contains( KeyEvent.VK_W ) ) { // forward
-            cam.moveForward( CAM_TRANSLATION ); needsRendering = true;
-        }
-        else if ( pressedKeys.contains( KeyEvent.VK_S ) ) { // backward
-            cam.moveForward( -CAM_TRANSLATION ); needsRendering = true;
-        }
-
-        if ( pressedKeys.contains( KeyEvent.VK_A ) ) { // left
-            cam.moveRight( -CAM_TRANSLATION ); needsRendering = true;
-        }
-        else if ( pressedKeys.contains( KeyEvent.VK_D ) ) { // right
-            cam.moveRight( CAM_TRANSLATION ); needsRendering = true;
-        }
-
-        if ( pressedKeys.contains( KeyEvent.VK_PLUS ) ) { // up
-            cam.moveUp( CAM_TRANSLATION ); needsRendering = true;
-        }
-        else if ( pressedKeys.contains( KeyEvent.VK_MINUS ) ) { // down
-            cam.moveUp( -CAM_TRANSLATION ); needsRendering = true;
-        }
-        if ( camAngleChanged ) {
-            cam.setYaw( newYaw );
-            cam.setPitch( newPitch );
-            camAngleChanged = false;
-            needsRendering = true;
-        }
-    }
-
-    public void run() {
-        final Timer timer = new Timer( 16, new ActionListener()
-        {
-            private final Vector3f angle = new Vector3f( 0, 0, 0 );
-
-            private static final float ONE_DEGREE_IN_RAD = (float) (2*Math.PI)/360;
-            private final Vector3f incrementsInDeg = new Vector3f(ONE_DEGREE_IN_RAD,ONE_DEGREE_IN_RAD,ONE_DEGREE_IN_RAD);
-
-            private final Random rnd = new Random( 0xdeadbeefL );
-
-            private int cnt = 0;
-            @Override
-            public void actionPerformed(ActionEvent ev)
-            {
-                RendererTest.this.handleInput();
-
-                if ( ROTATE_AROUND_X_AXIS || ROTATE_AROUND_Y_AXIS || ROTATE_AROUND_z_AXIS)
-                {
-                    if ( ROTATE_AROUND_X_AXIS)
-                    {
-                        angle.x += incrementsInDeg.x;
-                    }
-                    if (  ROTATE_AROUND_Y_AXIS)
-                    {
-                        angle.y += incrementsInDeg.y;
-                    }
-                    if  ( ROTATE_AROUND_z_AXIS)
-                    {
-                        angle.z += incrementsInDeg.z;
-                    }
-                    topLevelBodies.forEach( b -> b.setRotation( angle ) );
-                    if ( (cnt++ % ROTATION_CHANGE_INTERVAL) == 0 )
-                    {
-                        float r = rnd.nextFloat();
-                        if ( r < 0.3f )
-                        {
-                            incrementsInDeg.x = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
-                        }
-                        else if ( r < 0.7f )
-                        {
-                            incrementsInDeg.y = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
-                        }
-                        else
-                        {
-                            incrementsInDeg.z = (0.5f + rnd.nextFloat() * ONE_DEGREE_IN_RAD) / 100;
-                        }
-                    }
-                }
-                panel.repaint();
-            }
-        } );
-        timer.start();
-    }
-
-    static void main() throws InterruptedException, InvocationTargetException
-    {
-        SwingUtilities.invokeAndWait( () -> new RendererTest().run() );
-    }
-
-    private void setupKinematicsChain() {
+    private static void setupKinematicsChain() {
 
         final KinematicChain chain = new KinematicChain();
 
@@ -267,7 +72,7 @@ public class RendererTest extends JFrame
         System.out.println("Bodies to render: "+bodiesToRender.size());
     }
 
-    private void setupParentChild() {
+    private static void setupParentChild() {
         final Body b1 = new Body( MeshBuilder.createBox( 100, 2, 100, Color.RED.getRGB() ) , "b1" );
         final Body b2 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b2" );
         final Body b3 = new Body( MeshBuilder.createCylinder( 100, 10, 10, Color.BLUE.getRGB() ) , "b3" );
@@ -278,12 +83,32 @@ public class RendererTest extends JFrame
         b3.setRotation( 0,0, (float) (Math.PI / 2) );
         b3.setPosition( 50,0,0 );
         topLevelBodies.addAll( List.of( b1 ) );
-        bodiesToRender.addAll( List.of( b1, b2, b3 ) );
+        bodiesToRender.addAll( java.util.List.of( b1, b2, b3 ) );
     }
 
-    private void setupBodies() {
+    private static void setupBodies() {
 
-        setupKinematicsChain();
+        final VertexAttributes attributes = new VertexAttributes(
+            new VertexAttribute( VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE ),
+            new VertexAttribute( VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE )
+        );
+
+        com.badlogic.gdx.graphics.g3d.utils.MeshBuilder builder =
+            new com.badlogic.gdx.graphics.g3d.utils.MeshBuilder();
+        builder.begin(attributes, GL20.GL_TRIANGLES);
+
+        // **BoxShapeBuilder Usage**
+        // build() method takes the dimensions (width, height, depth) for a centered box.
+        // We also pass the color attribute here to make the whole box red.
+        builder.setColor( com.badlogic.gdx.graphics.Color.RED );
+        builder.box(50f, 50f, 50f);
+
+        final Body b1 = new Body( builder.end() , "b1" );
+        topLevelBodies.add( b1 );
+        bodiesToRender.add( b1 );
+
+        // setupKinematicsChain();
         // setupParentChild();
     }
 }
