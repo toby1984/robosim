@@ -1,5 +1,6 @@
 package de.codesourcery.robosim.kinematic;
 
+import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.robosim.render.Body;
 
 public final class Link implements Part
@@ -11,17 +12,32 @@ public final class Link implements Part
 
     public Body body;
 
-    // in meters
-    public float length,width,height;
+    public final Vector3 extent = new Vector3(0,0,0);
 
     // weight in KG
     public float weight;
 
     public final String name;
 
-    public Link(String name)
+    public Link(String name, float length, float depth)
     {
+        this.extent.x = depth;
+        this.extent.y = length;
+        this.extent.z = depth;
         this.name = name;
+    }
+
+    /* Orientation is
+     *
+     *    <<< X axis >>>
+     *  <<<<< length >>>>>
+     */
+    public float length() {
+        return extent.y;
+    }
+
+    public float depth() { // depth == width
+        return extent.x;
     }
 
     public String name() {

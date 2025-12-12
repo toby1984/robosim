@@ -25,6 +25,45 @@ public class Utils
     private static final Vector3 Y_AXIS = new Vector3( 0, 1, 0 );
     private static final Vector3 Z_AXIS = new Vector3( 0, 0, 1 );
 
+    /**
+     * Rotates a given vector around the X/Y/Z axis (in this order).
+     *
+     * @param vecToRotate vector to rotate (MUTATED in place)
+     * @param angles      X/Y/Z angles to rotate by
+     * @return <code>toRotate</code>
+     */
+    public static Vector3 rotate(Vector3 vecToRotate, Vector3 angles)
+    {
+        return vecToRotate.mul( createRotationMatrix(angles.x, angles.y, angles.z) );
+    }
+
+
+    /**
+     * Create rotation matrix to rotate around the X/Y/Z axis (in this order)
+     * @param v Rotation angles in degrees around X/Y/Z axis
+     * @return
+     */
+    public static Matrix4 createRotationMatrix(Vector3 v) {
+            return createRotationMatrix(v.x,v.y,v.z);
+    }
+
+    /**
+     * Creates a Matrix to rotate a around the X, Y and Z axis (in that order).
+     *
+     * @param angleX angle in degree
+     * @param angleY angle in degree
+     * @param angleZ angle in degree
+     * @return rotation matrix
+     */
+    public static Matrix4 createRotationMatrix(float angleX, float angleY, float angleZ)
+    {
+        final Matrix4 m1 = new Matrix4().setToRotation( 0, 0, 1, angleZ );
+        m1.rotate( 0, 1, 0, angleY );
+        return m1.rotate( 1, 0, 0, angleX );
+    }
+
+
+
     public static Matrix4 setToRotation(Matrix4 matrix, float x, float y, float z)
     {
         matrix.setToRotation( Z_AXIS, z );

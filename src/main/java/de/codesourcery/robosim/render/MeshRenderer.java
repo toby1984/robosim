@@ -5,11 +5,9 @@ import java.util.function.Supplier;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 public class MeshRenderer extends ApplicationAdapter
@@ -82,7 +80,7 @@ public class MeshRenderer extends ApplicationAdapter
             throw new IllegalStateException( "Shader failed to compile." );
         }
         camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        camera.position.set(100f, 100f, 100f);
+        camera.position.set(0, 0f, 50f);
         camera.lookAt(0f, 0f, 0f);
         camera.near = 0.1f; // Closer near plane for better viewing of nearby objects
         camera.far = 500f;

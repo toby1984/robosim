@@ -2,6 +2,7 @@ package de.codesourcery.robosim.kinematic;
 
 import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.robosim.ITickListener;
+import de.codesourcery.robosim.Utils;
 import de.codesourcery.robosim.motor.Motor;
 import de.codesourcery.robosim.render.Body;
 
@@ -15,10 +16,13 @@ public final class Joint implements Part, ITickListener
     /** motor driving this join */
     public Motor motor = new Motor("base");
 
-    // axis around which this join rotates
-    public final Vector3 rotationAxis = new Vector3(0,1,0);
+    // installed orientation (rotation around X/Y/Z axis)
+    public final Vector3 installOrientation = new Vector3(0,0,0);
 
-    public float length, diameter;
+    // axis around which this join rotates
+    private final Vector3 rotationAxis = new Vector3(1,0,0);
+
+    private final Vector3 extent  = new Vector3(0,0,0);
 
     // rotation around x,y and z axis
     private boolean anglesLimited = false;
@@ -27,15 +31,37 @@ public final class Joint implements Part, ITickListener
     public Body body;
     public final String name;
 
-    public Joint(String name)
+    public Joint(String name, float length, float diameter)
     {
+        this.extent.x = length;
+        this.extent.y = diameter;
+        this.extent.z = diameter;
         this.name = name;
+    }
+
+    /**
+     * Returns rotation axis in WORLD space.
+     * @return
+     */
+    public Vector3 getRotationAxis() {
+        if ( installOrientation.isZero() ) {
+            return rotationAxis;
+        }
+        return Utils.rotate( rotationAxis.cpy(), installOrientation );
     }
 
     @Override
     public String name()
     {
         return name;
+    }
+
+    public float diameter() {
+        return extent.z;
+    }
+
+    public float length() {
+        return extent.x;
     }
 
     @Override
