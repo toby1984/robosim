@@ -2,6 +2,8 @@ package de.codesourcery.robosim;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.function.Consumer;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.graphics.GL20;
@@ -12,6 +14,7 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.robosim.kinematic.Joint;
 import de.codesourcery.robosim.kinematic.KinematicChain;
+import de.codesourcery.robosim.kinematic.KinematicChainController;
 import de.codesourcery.robosim.kinematic.Link;
 import de.codesourcery.robosim.kinematic.ModelBuilder;
 import de.codesourcery.robosim.render.Body;
@@ -21,6 +24,8 @@ public class RendererTest
 {
     private static final List<Body> topLevelBodies = new ArrayList<>();
     private static final List<Body> bodiesToRender = new ArrayList<>();
+
+    private static KinematicChainController kinematicChainController;
 
     static void main()
     {
@@ -32,38 +37,59 @@ public class RendererTest
         config.setIdleFPS( 60 );
 
         config.setWindowedMode(800, 600);
+
+        final Random rnd = new Random();
+
         new Lwjgl3Application(new MeshRenderer( () -> {
-            setupBodies();
+            kinematicChainController = new KinematicChainController(setupBodies());
+            kinematicChainController.start();
             return bodiesToRender;
-        }), config);
+        }, elapsedSeconds -> {
+            kinematicChainController.tick( elapsedSeconds );
+            if ( kinematicChainController.hasArrivedAtDestinationAngles() ) {
+                kinematicChainController.enqueue( c -> c.assignRandomAngles( rnd ) );
+            }
+        } ), config);
     }
 
-    private static void setupKinematicsChain() {
+    private static KinematicChain setupBodies() {
+
+//        // final Body b1 = createCylinder("b1", 100,10,com.badlogic.gdx.graphics.Color.RED );
+//        final Body b1 = createBox("b1", 100,20, com.badlogic.gdx.graphics.Color.RED );
+//        topLevelBodies.add( b1 );
+//        bodiesToRender.add( b1 );
+
+        return setupKinematicsChain();
+        // setupParentChild();
+    }
+
+    private static KinematicChain setupKinematicsChain() {
 
         final KinematicChain chain = new KinematicChain();
 
         final float linkLen = 50;
+        final float linkWidth = 5;
 
-        final Joint base = chain.addPart( new Joint( "Base", 10, 100 ) );
+        final Joint base = chain.addPart( new Joint( "Base", 5, 30 ) );
         base.installOrientation.set( 0, 0, 90 );
-        chain.addPart( new Link(  "Link #1" , linkLen, 20 ) );
-        chain.addPart( new Joint( "Shoulder", 100, 10 ) );
-        chain.addPart( new Link(  "Link #2" , linkLen, 20 ) );
-        chain.addPart( new Joint( "Elbow"   , 100, 10 ) );
-        chain.addPart( new Link(  "Link #3" , linkLen, 20) );
-        chain.addPart( new Joint( "Wrist #1", 100, 10 ) );
-        chain.addPart( new Link(  "Link #4" , linkLen, 20 ) );
-        chain.addPart( new Joint( "Wrist #2", 100, 10 ) );
-        chain.addPart( new Link(  "Gripper" , linkLen, 20 ) );
+
+        chain.addPart( new Link(  "Link #1" , linkLen, linkWidth ) );
+        chain.addPart( new Joint( "Shoulder", 10, 10 ) );
+        chain.addPart( new Link(  "Link #2" , linkLen, linkWidth ) );
+        chain.addPart( new Joint( "Elbow", 10, 10 ) );
+        chain.addPart( new Link(  "Link #3" , linkLen, linkWidth) );
+        chain.addPart( new Joint( "Wrist #1", 10, 10 ) );
+        chain.addPart( new Link(  "Link #4" , linkLen, linkWidth ) );
+        chain.addPart( new Joint( "Wrist #2", 10, 10 ) );
+        chain.addPart( new Link(  "Gripper" , linkLen, linkWidth ) );
 
         new ModelBuilder().assignBodies( chain );
-
-        chain.firstJoint.body.setRotation( 0,0,90 );
 
         topLevelBodies.add( chain.firstJoint.body() );
         System.out.println( "Top-level bodies: " + topLevelBodies.size() );
         bodiesToRender.addAll( chain.firstJoint.getAllBodies() );
         System.out.println("Bodies to render: "+bodiesToRender.size());
+        return chain;
     }
 
     private static void setupParentChild() {
@@ -112,7 +138,7 @@ public class RendererTest
 
     public static Body createBox(String name, float length, float width, com.badlogic.gdx.graphics.Color color) {
         //noinspection SuspiciousNameCombination
-        return createBox( name, length, width, width, color );
+        return createBox( name, width , length, width, color );
     }
 
     public static Body createBox(String name, float width, float height, float depth, com.badlogic.gdx.graphics.Color color)
@@ -125,22 +151,11 @@ public class RendererTest
 
         com.badlogic.gdx.graphics.g3d.utils.MeshBuilder builder =
             new com.badlogic.gdx.graphics.g3d.utils.MeshBuilder();
-        builder.begin(attributes, GL20.GL_TRIANGLES);
 
+        builder.begin(attributes, GL20.GL_TRIANGLES);
         builder.setColor( color );
         builder.box(width, height, depth);
 
         return new Body( builder.end() , name );
-    }
-
-    private static void setupBodies() {
-
-//        final Body b1 = createCylinder("b1", 100,10,com.badlogic.gdx.graphics.Color.RED );
-//        final Body b1 = createBox("b1", 100,20, com.badlogic.gdx.graphics.Color.RED );
-//        topLevelBodies.add( b1 );
-//        bodiesToRender.add( b1 );
-
-         setupKinematicsChain();
-//         setupParentChild();
     }
 }

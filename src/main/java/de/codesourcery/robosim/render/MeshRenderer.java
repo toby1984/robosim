@@ -4,11 +4,15 @@ import java.util.List;
 import java.util.function.Supplier;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector3;
+import de.codesourcery.robosim.ITickListener;
 
 public class MeshRenderer extends ApplicationAdapter
 {
@@ -64,14 +68,28 @@ public class MeshRenderer extends ApplicationAdapter
     private List<Body> bodies;
     private final Supplier<List<Body>> bodySupplier;
 
-    public MeshRenderer(Supplier<List<Body>> bodySupplier)
+    private SpriteBatch batch;
+    private BitmapFont font;
+
+    private final ITickListener beforeRenderingFrame;
+
+    public MeshRenderer(Supplier<List<Body>> bodySupplier, ITickListener beforeRenderingFrame)
     {
         this.bodySupplier = bodySupplier;
+        this.beforeRenderingFrame = beforeRenderingFrame;
     }
 
     @Override
     public void create()
     {
+        // font stuff
+        batch = new SpriteBatch();
+
+        // This initializes the default 15pt Arial font included in libGDX
+        font = new BitmapFont();
+        font.setColor( Color.WHITE);
+
+        //
         this.bodies = bodySupplier.get();
         shader = new ShaderProgram( VERTEX_SHADER, FRAGMENT_SHADER );
         if ( !shader.isCompiled() )
@@ -80,14 +98,15 @@ public class MeshRenderer extends ApplicationAdapter
             throw new IllegalStateException( "Shader failed to compile." );
         }
         camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        camera.position.set(0, 0f, 50f);
-        camera.lookAt(0f, 0f, 0f);
+        camera.position.set(300, 170f, 155f);
+        camera.direction.set( new Vector3( -0.8998152f, -0.08207582f, -0.42848226f ) );
+        // camera.lookAt(0f, 0f, 0f);
         camera.near = 0.1f; // Closer near plane for better viewing of nearby objects
         camera.far = 500f;
         camera.update();
 
         cameraController = new FirstPersonCameraController(camera);
-        cameraController.setVelocity( 50 );
+        cameraController.setVelocity( 100 );
         cameraController.setDegreesPerPixel( 1 );
 
         // This line tells LibGDX to send all input events (keys, mouse, etc.) to our controller
@@ -104,7 +123,7 @@ public class MeshRenderer extends ApplicationAdapter
     @Override
     public void render()
     {
-//        bodies.getFirst().incAngleZ( 1 );
+        beforeRenderingFrame.tick( Gdx.graphics.getDeltaTime() );
 
         cameraController.update(Gdx.graphics.getDeltaTime());
 
@@ -124,6 +143,12 @@ public class MeshRenderer extends ApplicationAdapter
             shader.setUniformMatrix("u_meshTrans", body.getAbsoluteMatrix());
             body.getMesh().render( shader, GL20.GL_TRIANGLES);
         }
+
+//        batch.begin();
+//        font.draw(batch, "Camera pos: "+camera.position, 100, 100);
+//        font.draw(batch, "Camera dir: "+camera.direction, 100, 75);
+//        System.out.println("Camera dir: "+camera.direction);
+//        batch.end();
     }
 
     @Override
@@ -131,6 +156,7 @@ public class MeshRenderer extends ApplicationAdapter
     {
         bodies.forEach( body -> body.getMesh().dispose() );
         shader.dispose();
+        batch.dispose();
     }
 
 }

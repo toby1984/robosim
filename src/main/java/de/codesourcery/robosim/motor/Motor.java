@@ -132,6 +132,10 @@ public class Motor
         return currentTemperature > maxTemperature;
     }
 
+    public boolean hasArrivedAtDestinationAngle() {
+        return ! isMoving() && Math.abs( currentAngle - desiredAngle ) < 0.001;
+    }
+
     public boolean isMoving() {
         return Math.abs( this.currentAngularVelocity ) > 0.0001;
     }
@@ -217,11 +221,6 @@ public class Motor
             this.currentAngularVelocity = newAngularVelocity;
             this.currentAngle = newAngle;
         }
-
-//        if ( isMoving() ) {
-//            System.out.println("Current angle: "+currentAngle+" rad");
-//            System.out.println( "Current speed: " + currentAngularVelocity + " rad/s" );
-//        }
     }
 
     public void reset()

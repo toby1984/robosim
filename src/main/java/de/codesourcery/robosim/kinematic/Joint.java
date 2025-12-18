@@ -1,5 +1,7 @@
 package de.codesourcery.robosim.kinematic;
 
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.robosim.ITickListener;
 import de.codesourcery.robosim.Utils;
@@ -16,15 +18,14 @@ public final class Joint implements Part, ITickListener
     /** motor driving this join */
     public Motor motor = new Motor("base");
 
-    // installed orientation (rotation around X/Y/Z axis)
+    // installed orientation (rotation in degrees around X/Y/Z axis)
     public final Vector3 installOrientation = new Vector3(0,0,0);
 
-    // axis around which this join rotates
+    // axis around which this join rotates (defaults to X axis)
     private final Vector3 rotationAxis = new Vector3(1,0,0);
 
     private final Vector3 extent  = new Vector3(0,0,0);
 
-    // rotation around x,y and z axis
     private boolean anglesLimited = false;
     public float minAngle,maxAngle;
 
@@ -39,15 +40,22 @@ public final class Joint implements Part, ITickListener
         this.name = name;
     }
 
-    /**
-     * Returns rotation axis in WORLD space.
-     * @return
-     */
-    public Vector3 getRotationAxis() {
-        if ( installOrientation.isZero() ) {
-            return rotationAxis;
+    public void updateRotationFromMotor()
+    {
+        final Vector3 rot;
+        if ( installOrientation.isZero() )
+        {
+            rot = rotationAxis;
         }
-        return Utils.rotate( rotationAxis.cpy(), installOrientation );
+        else
+        {
+            rot = rotationAxis.cpy().mul( Utils.createRotationMatrix( installOrientation ) );
+        }
+
+        if ( body != null )
+        {
+            body.setRotation( new Matrix4().rotate( rot, Utils.radToDeg( (float) motor.currentAngle ) ) );
+        }
     }
 
     @Override

@@ -57,17 +57,34 @@ public class Utils
      */
     public static Matrix4 createRotationMatrix(float angleX, float angleY, float angleZ)
     {
-        final Matrix4 m1 = new Matrix4().setToRotation( 0, 0, 1, angleZ );
+        final Matrix4 m1 = new Matrix4()
+            .setToRotation( 0, 0, 1, angleZ );
         m1.rotate( 0, 1, 0, angleY );
         return m1.rotate( 1, 0, 0, angleX );
     }
 
-
-
+    /**
+     * Set a matrix to be a given rotation around the X,Y and Z axis.
+     *
+     * @param matrix
+     * @param x angle around X axis in degrees
+     * @param y angle around Y axis in degrees
+     * @param z angle around Z axis in degrees
+     * @return
+     */
     public static Matrix4 setToRotation(Matrix4 matrix, float x, float y, float z)
     {
         matrix.setToRotation( Z_AXIS, z );
         matrix.rotate( Y_AXIS, y);
         return matrix.rotate( X_AXIS, x);
+    }
+
+    public static float radToDeg(float rad) {
+        return (float) (rad * (180 / Math.PI));
+    }
+
+    public static float degToRad(float deg)
+    {
+        return (float) (deg * (Math.PI / 180));
     }
 }

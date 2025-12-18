@@ -10,7 +10,6 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.math.collision.BoundingBox;
-import de.codesourcery.robosim.Utils;
 
 public class Body
 {
@@ -20,8 +19,11 @@ public class Body
     private final Vector3 relPosition = new Vector3();
     private final Vector3 absolutePosition = new Vector3();
 
-    private final Vector3 relRotation = new Vector3();
-    private final Vector3 absoluteRotation = new Vector3();
+    // relative rotation around the X,Y and Z axis in degrees
+    private final Matrix4 relRotation = new Matrix4();
+
+    // absolute rotation around the X,Y and Z axis in degrees
+    private final Matrix4 absoluteRotation = new Matrix4();
 
     // transformation matrices for this body only
     private final Matrix4 relativeMatrix = new Matrix4();
@@ -125,12 +127,7 @@ public class Body
         return !hasParent();
     }
 
-    public Vector3 relativeRotation()
-    {
-        return relRotation;
-    }
-
-    public Vector3 absoluteRotation()
+    public Matrix4 absoluteRotation()
     {
         return hasParent() ? absoluteRotation : relRotation;
     }
@@ -152,14 +149,9 @@ public class Body
         children.forEach( Body::setParentChanged );
     }
 
-    public void setRotation(Vector3 v)
+    public void setRotation(Matrix4 m)
     {
-        setRotation( v.x, v.y, v.z );
-    }
-
-    public void setRotation(float x, float y, float z)
-    {
-        relRotation.set( x, y, z );
+        relRotation.set( m );
         thisInstanceChanged = true;
         children.forEach( Body::setParentChanged );
     }
@@ -173,16 +165,10 @@ public class Body
         return this.relativeMatrix;
     }
 
-    public void incAngleZ(float increment)
-    {
-        setRotation( relRotation.x, relRotation.y, relRotation.z + increment );
-    }
-
     public void recalculate()
     {
-        final Matrix4 r = Utils.setToRotation( new Matrix4(), relRotation.x, relRotation.y, relRotation.z );
         final Matrix4 t = new Matrix4().setTranslation( relPosition );
-        relativeMatrix.set( t ).mul( r );
+        relativeMatrix.set( t ).mul( relRotation );
         this.thisInstanceChanged = false;
 
         if ( hasParent() )
@@ -194,7 +180,7 @@ public class Body
             this.absolutePosition.add( parent.absolutePosition() );
 
             this.absoluteRotation.set( parent.absoluteRotation() );
-            this.absoluteRotation.add( this.relRotation );
+            this.absoluteRotation.mul( this.relRotation );
         }
 
         children.forEach( Body::recalculate );
